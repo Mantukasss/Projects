@@ -12,7 +12,7 @@ The launcher PWA. Google sign-in, then a grid of tiles — one per app — read 
 - **Legacy ESLint** (`.eslintrc.json` + `next.config.js`)
 - Tailwind 3 + Radix Colors, Tabler icons (`@tabler/icons-react`), Supabase SSR (Google OAuth)
 - Extra npm scripts: `typecheck` (`tsc --noEmit`) and `setup-vercel` (`scripts/setup-vercel-project.mjs`, bootstraps new Vercel projects)
-- Prod: Vercel project `<vercel-prefix>-hub`, Root Directory `apps/hub`
+- Prod: Vercel project `mantas-hub`, Root Directory `apps/hub`
 
 ## Conventions
 - The tile registry is `config/apps.json`, read via `src/lib/apps.ts` (`getApps()`, typed `AppDefinition`). Imported at **build time** — edit JSON, then redeploy.
@@ -31,11 +31,26 @@ The launcher PWA. Google sign-in, then a grid of tiles — one per app — read 
 - This app is also the **reference implementation** for new apps: Supabase SSR auth, PWA manifest + `sw.js`, dark Radix theme. Copy the patterns from here rather than reinventing them.
 
 ## Current state
-Fresh from the infrastructure template and not yet deployed. The code is complete and
+Infrastructure is wired up; awaiting its first production deploy. The code is complete and
 working: Google OAuth sign-in/landing, the app grid from `apps.json`, PWA install, and
 service-worker registration. `config/apps.json` is `{"apps": []}`, so the hub renders its
 empty state ("No apps yet"). `public/app-icons/` is empty.
 
+Live infrastructure:
+- Vercel project `mantas-hub` (`prj_mOrpJ65LaFCNPyRoIMHTTgBXoOmr`), team `TWITTER`,
+  Root Directory `apps/hub`, production branch `main`. `NEXT_PUBLIC_SUPABASE_URL` and
+  `NEXT_PUBLIC_SUPABASE_ANON_KEY` are set on the project for all three targets.
+- Supabase `tsyozhctvotcgqpqrbrr`: `hub.user_app_preferences` exists with RLS on and the
+  four owner-only policies. The `hub` schema is exposed to the Data API in both places
+  (`postgrest.db_schema` and `authenticator`'s `pgrst.db_schemas`), reloads sent.
+- Google OAuth enabled. `site_url` is the hub's production URL; the redirect allow list
+  covers production, `mantas-hub-*.vercel.app` previews, and `localhost:3000`.
+
 ## Next
-- Complete root `SETUP.md` (placeholders, Supabase project, Vercel project, auth redirect URLs), then deploy.
+- Merge to `main` to trigger the first production build, then sign in with Google on
+  `https://mantas-hub.vercel.app` and confirm the empty state renders.
+- The session env var `NEXT_PUBLIC_SUPABASE_ANON_KEY` holds a masked-paste value
+  (`eyJhbGci` + bullet characters) and is rejected by the Data API. Vercel has the correct
+  key, so deploys are fine, but anything reading that env var directly — the setup script
+  for the next app, local `next dev` — will fail until it is re-pasted.
 - The reserved `hub.user_app_preferences` table is the obvious hook if/when you want a per-app version picker.

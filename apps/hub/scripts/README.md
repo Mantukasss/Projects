@@ -25,7 +25,7 @@ The tokens are personal secrets — keep them in the session env vars panel, nev
 ### Run it
 
 ```bash
-npm run setup-vercel -- --repo <repo> --name <vercel-prefix>-workout --slug workout
+npm run setup-vercel -- --repo Projects --name mantas-workout --slug workout
 ```
 
 Optional flags:

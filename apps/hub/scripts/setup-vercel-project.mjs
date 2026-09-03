@@ -18,7 +18,7 @@
  *   - GITHUB_OWNER, or pass --github-owner
  *
  * Usage:
- *   node scripts/setup-vercel-project.mjs --repo <repo> --name <vercel-project> --slug <app-folder>
+ *   node scripts/setup-vercel-project.mjs --repo Projects --name <vercel-project> --slug <app-folder>
  *
  * Optional flags:
  *   --prod-branch <branch>   Production branch name (default: main)

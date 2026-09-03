@@ -1,5 +1,11 @@
 # First-time setup
 
+> **Status: done.** This repo is set up. The values that filled the placeholders below:
+> owner `Mantas` (`markamantas9@gmail.com`) · GitHub `Mantukasss/Projects` ·
+> Vercel prefix `mantas` (team `TWITTER`, `team_5qHcbqn3fpmctrIR2pEtT3Sd`) ·
+> Supabase ref `tsyozhctvotcgqpqrbrr`. Kept as a record of what setup involves, and as the
+> checklist to follow if the portfolio is ever rebuilt on fresh accounts.
+
 This repo is the infrastructure only — the monorepo tooling, the hub launcher, and the
 rules in `CLAUDE.md` / `SCHEMA_RULES.md`. No portfolio apps yet.
 
@@ -32,7 +38,7 @@ Then delete the "set up from a template" note near the top of `CLAUDE.md`.
   this repo.
 - **Google Cloud** — an OAuth client for Supabase's Google provider (Supabase's auth docs
   walk through this; the redirect URL is
-  `https://<supabase-project-ref>.supabase.co/auth/v1/callback`).
+  `https://tsyozhctvotcgqpqrbrr.supabase.co/auth/v1/callback`).
 
 ## 3. Set the env vars
 
@@ -57,11 +63,11 @@ Then expose the `hub` schema to the Data API — **both** places, per `SCHEMA_RU
 ```bash
 npm install
 node apps/hub/scripts/setup-vercel-project.mjs \
-  --repo <repo> --name <vercel-prefix>-hub --slug hub --github-owner <github-owner>
+  --repo Projects --name mantas-hub --slug hub --github-owner Mantukasss
 ```
 
 Then in Supabase → Authentication → URL Configuration, add the hub's production URL to the
-redirect allow list (`https://<vercel-prefix>-hub.vercel.app/auth/callback`), plus
+redirect allow list (`https://mantas-hub.vercel.app/auth/callback`), plus
 `http://localhost:3000/auth/callback` for local dev.
 
 ## 6. Verify
