@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+.next/
+out/
+dist/
+.turbo/
+
+# Vercel
+.vercel
+
+# Env files
+.env
+.env*.local
+
+# Downloaded Google service-account credentials (never commit private keys)
+/*-service-account-*.json
+/*service-account*.json
+*.json:Zone.Identifier
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Misc
+.DS_Store
+*.tsbuildinfo
+
+# Root lockfile: byproduct of running `npm install` at the repo root. Each app
+# currently commits its own package-lock.json; adopting a single root lockfile is
+# part of the deferred structure pass. Ignore the root one until that's decided.
+/package-lock.json
+
+# Local screenshot scratch script (Playwright + @sparticuz/chromium). Personal dev
+# tool — untracked, its deps aren't in package.json. Ignore so it isn't committed here.
+/.shot.cjs
