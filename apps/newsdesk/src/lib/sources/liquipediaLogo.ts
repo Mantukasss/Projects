@@ -52,16 +52,24 @@ function upscale(url: string): string {
   return url.replace(/\/(\d+)px-/, "/600px-");
 }
 
-export async function fetchTeamLogo(title: string): Promise<string | null> {
-  const cached = cache.get(title);
+/** Liquipedia is one wiki per game; a VALORANT org has no page on the Counter-Strike one. */
+export type Wiki = "counterstrike" | "valorant";
+
+export async function fetchTeamLogo(
+  title: string,
+  wiki: Wiki = "counterstrike",
+): Promise<string | null> {
+  const key = `${wiki}:${title}`;
+  const cached = cache.get(key);
   if (cached) {
     const ttl = cached.url ? HIT_TTL_MS : MISS_TTL_MS;
     if (Date.now() - cached.at < ttl) return cached.url;
   }
 
+
   try {
     const api =
-      "https://liquipedia.net/counterstrike/api.php" +
+      `https://liquipedia.net/${wiki}/api.php` +
       "?action=parse&format=json&prop=text&section=0&page=" +
       encodeURIComponent(title.replace(/ /g, "_"));
 
@@ -79,11 +87,11 @@ export async function fetchTeamLogo(title: string): Promise<string | null> {
       ? upscale(picked.startsWith("http") ? picked : `https://liquipedia.net${picked}`)
       : null;
 
-    cache.set(title, { url, at: Date.now() });
+    cache.set(key, { url, at: Date.now() });
     return url;
   } catch {
     // A missing logo must never fail the feed — the quote card is the fallback media.
-    cache.set(title, { url: null, at: Date.now() });
+    cache.set(key, { url: null, at: Date.now() });
     return null;
   }
 }

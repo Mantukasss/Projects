@@ -63,6 +63,14 @@ and the app gains Google sign-in copied from `apps/hub`.
   page's whole image list, which includes every opponent from its match tables, so MOUZ
   resolved to "4klogo" and Imperial Esports to "Red Canids". Only section 0 gives the team's
   own badge. `prop=pageimages` returns nothing — the extension is not populated here.
+- **HLTV's image CDN answers a browser and refuses a server.** Its photos must be rendered
+  from the source URL directly; routing them through `/api/image` returns 502 and blanks
+  every player photo in the feed. The proxy exists for the canvas, not for display.
+  Consequence: a source photo drawn onto the quote card taints it, so `download()` catches
+  the throw, drops the photo and redraws.
+- **`teams.ts` is a curated list and `/api/logo` trusts it.** The shape heuristic that keeps
+  player pages out also rejects real orgs carrying no giveaway word — "The MongolZ",
+  "Astralis", "Fnatic" — and silently dropped their badges.
 - **Never resolve a badge for a player page.** A player's infobox shows their *current*
   team, which on a transfer story is the club they may be leaving. `/api/logo` 404s on them.
 - **`/api/image` is allowlisted on purpose.** An open image proxy lets anyone use the
@@ -87,6 +95,12 @@ and the app gains Google sign-in copied from `apps/hub`.
   shortcuts.
 - **Team names come from HLTV's anchor text, not the URL slug.** Rebuilding from the slug
   gave "Mouz", "9Z" and "THE Mongolz" instead of "MOUZ", "9z" and "The MongolZ".
+
+### Media
+Every post carries an image; the card blocks copying until one exists. An item that names a
+known team gets that team's Liquipedia badge, whatever the source, so a roster story goes
+out wearing the right crest. Game updates carry two images — the news and the game — which
+is how the accounts that own this beat post them.
 
 ### Post format
 Posts open `JUST IN:` or `RUMOR:` and credit no source in the text. Both come from reading

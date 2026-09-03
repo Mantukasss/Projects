@@ -37,6 +37,23 @@ const KIND_EMOJI: Record<FeedItem["kind"], string> = {
   news: "👀",
 };
 
+/**
+ * The X account behind a source, for a "via @handle" credit.
+ *
+ * A handle is not a link: X demotes posts that send people off the platform, and a mention
+ * keeps them on it. So the credit costs nothing, and it buys two things — it stops a
+ * lifted scoop looking lifted, and the credited account sometimes replies, which is reach.
+ *
+ * Only for sources that ARE an account someone can go and read. Liquipedia is a wiki and
+ * Reddit is a forum: crediting them by handle would be noise, and their attribution belongs
+ * in reply 1 like everything else.
+ */
+const SOURCE_HANDLE: Partial<Record<FeedItem["source"], string>> = {
+  hltv: "@HLTVorg",
+  steam: "@CounterStrike",
+  vlr: "@VLRdotgg",
+};
+
 const SOURCE_NAME: Record<FeedItem["source"], string> = {
   hltv: "HLTV",
   liquipedia: "Liquipedia",
@@ -72,6 +89,16 @@ function readWikiEdit(item: FeedItem): { subject: string; section: string; burst
  */
 const CS2_ARTWORK =
   "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/730/capsule_616x353.jpg";
+
+/**
+ * The mark that rides on a VALORANT post's second slot, so it gets the team's badge plus a
+ * game mark — the same one-is-a-caption, two-is-an-event reasoning as a CS2 update.
+ *
+ * This is VLR.gg's logo, not Riot's. Riot serves its artwork from a CMS with opaque,
+ * rotating asset paths, and shipping a guessed URL would mean posts going out with a broken
+ * image; this one is verified to answer. Swap it if a stable Riot asset URL turns up.
+ */
+const VALORANT_ARTWORK = "https://www.vlr.gg/img/vlr/logo_header.png";
 
 /** Takes whole sentences up to a budget, so a post never ends mid-word. */
 function firstSentences(text: string, budget: number): string {
@@ -130,11 +157,16 @@ export function compose(item: FeedItem): Draft {
     body = `${CONFIRMED} ${item.title}\n\n${emoji}`;
   }
 
+  const handle = SOURCE_HANDLE[item.source];
+  // The credit rides on the emoji line rather than taking a line of its own, so it never
+  // costs the post a line of substance.
+  const credited = handle ? `${body} via ${handle}` : body;
+
   return {
-    body,
+    body: credited,
     reply: `Source: ${SOURCE_NAME[item.source]}\n${item.url}`,
     image: item.image,
-    secondImage: isGameUpdate(item) ? CS2_ARTWORK : undefined,
+    secondImage: item.source === "vlr" ? VALORANT_ARTWORK : isGameUpdate(item) ? CS2_ARTWORK : undefined,
     needsCard: !item.image,
   };
 }

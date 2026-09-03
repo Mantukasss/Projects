@@ -8,6 +8,7 @@ import { fetchSteam } from "@/lib/sources/steam";
 import { fetchTelegram } from "@/lib/sources/telegram";
 import { alreadyCovered, fetchRivalPosts } from "@/lib/sources/rivals";
 import { markIncomplete } from "@/lib/incomplete";
+import { teamInText } from "@/lib/teams";
 import { fetchVlr } from "@/lib/sources/vlr";
 import { staleOnError } from "@/lib/sources/staleCache";
 
@@ -63,7 +64,11 @@ export async function GET(request: Request) {
   const annotated = items.map((item) => {
     const flagged = markIncomplete(item);
     const scooped = alreadyCovered(flagged.title, flagged.summary, rivals);
-    return scooped ? { ...flagged, scooped } : flagged;
+    // A named team means a badge is available, whatever the source. Liquipedia items are
+    // already about a team page, so they use their own title.
+    const teamPage =
+      item.source === "liquipedia" ? item.title : teamInText(`${item.title} ${item.summary}`);
+    return { ...flagged, ...(scooped ? { scooped } : {}), ...(teamPage ? { teamPage } : {}) };
   });
 
   const ranked = dedupe(annotated.map(scoreItem)).sort((a, b) => b.score - a.score);
