@@ -7,7 +7,7 @@
       "icon": "news",
       "color": "amber",
       "versions": {
-        "stable": "https://<vercel-prefix>-newsdesk.vercel.app"
+        "stable": "https://mantas-newsdesk.vercel.app"
       },
       "added_at": "2026-09-03"
     }

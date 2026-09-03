@@ -11,7 +11,7 @@ ready-to-post draft plus media.
 - Next.js 15 (App Router) + React 19 + TypeScript, `src/` layout, legacy ESLint
 - Tailwind 3 + Radix Colors (dark only), Tabler icons, `fast-xml-parser` for RSS/Atom
 - **No Supabase, no auth, no cron.** Deliberate — see Gotchas.
-- Prod: Vercel project `<vercel-prefix>-newsdesk`, Root Directory `apps/newsdesk`
+- Prod: Vercel project `mantas-newsdesk`, Root Directory `apps/newsdesk`
 
 ## Conventions
 - One file per source under `src/lib/sources/`, each exporting `fetch<Source>(): Promise<FeedItem[]>`.
@@ -63,12 +63,14 @@ minutes) and ten HLTV items with images and correct quote/roster/result classifi
 The quote-card generator, both copy buttons, source toggles and the posted list all work;
 screenshots were taken at a 412px viewport.
 
-Registered in `apps/hub/config/apps.json` with a placeholder production URL, because the
-repo's `<vercel-prefix>` placeholder is still unfilled — the URL must be corrected when the
-Vercel project is created.
+Vercel project `mantas-newsdesk` exists (Root Directory `apps/newsdesk`, production branch
+`main`) and is registered in `apps/hub/config/apps.json` at
+`https://mantas-newsdesk.vercel.app`. Unlike the hub, this app's `vercel.json` does **not**
+set `git.deploymentEnabled: false` — the template ships that flag on, which silently blocks
+every git-triggered build, so it was removed here to let pushes deploy.
 
 ## Next
-- Deploy: run `node apps/hub/scripts/setup-vercel-project.mjs --repo projects --name <vercel-prefix>-newsdesk --slug newsdesk`, then fix the real URL in `apps/hub/config/apps.json`.
+- Deploy: run `node apps/hub/scripts/setup-vercel-project.mjs --repo projects --name mantas-newsdesk --slug newsdesk`, then fix the real URL in `apps/hub/config/apps.json`.
 - Add the streamer layer: Twitch Helix for live/offline transitions and clip-view velocity, which finds a viral moment before it is viral on X. Needs a free Twitch app (client id + secret).
 - Add a Polymarket detector: `https://data-api.polymarket.com` is public and unauthenticated, so large position opens by top-ranked wallets are free to compute and nobody is posting them in a clean format.
 - Push instead of pull, once the feed proves itself: Supabase `pg_cron` + `pg_net` on a one-minute schedule, writing new items to a table and firing a web push.

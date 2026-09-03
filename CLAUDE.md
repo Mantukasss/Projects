@@ -10,15 +10,11 @@ This is a **personal app portfolio**. This repo is the **hub** — a launcher th
 > Vercel project (Root Directory `apps/<name>`); production ships from `main` for all apps in
 > lockstep, with rollback via Vercel's deployment history.
 
-> **This repo was set up from a template.** Anything in angle brackets (`<owner-name>`,
-> `<supabase-project-ref>`, …) is a placeholder to fill in — see `SETUP.md`. Delete this
-> paragraph once they are all filled.
-
 ---
 
 ## Who and what
 
-- **Owner:** `<owner-name>` (`<owner-email>`), GitHub `<github-owner>`.
+- **Owner:** `Mantas` (`markamantas9@gmail.com`), GitHub `Mantukasss`.
 - **Workflow:** Code is pushed from agent sessions, Vercel auto-deploys, the owner tests on the live URL. Local dev in an agent sandbox is fine and encouraged when useful (iterating on visuals, sanity-checking with `next dev`), but **the source of truth is the GitHub repo** — nothing ships without being committed and pushed.
 - **Goal:** Ship PWAs fast and iterate. Each app should be shippable in 1–2 sessions. The hub lists them.
 - **Hard constraint: 100% free to run.** Vercel free tier + Supabase free tier. If a request would require ANY other paid service, **stop and flag it before implementing.**
@@ -46,7 +42,7 @@ Users can only `SELECT/INSERT/UPDATE/DELETE` rows where `user_id = auth.uid()`. 
 - **Framework:** Next.js 15 (App Router) + TypeScript
 - **Styling:** Tailwind CSS + Radix Colors (dark mode only)
 - **PWA:** Every app AND the hub are installable PWAs (manifest + service worker)
-- **Hosting:** Vercel free tier, `<vercel-prefix>-*` project names
+- **Hosting:** Vercel free tier, `mantas-*` project names
 - **Backend:** Supabase (Postgres + Auth) free tier — one shared project, Google OAuth
 - **Code:** GitHub — a single monorepo (`apps/*` + shared root tooling), npm workspaces + Turborepo
 - **Icons:** Tabler icons — map icon-name strings to Tabler components in code
@@ -75,7 +71,7 @@ All apps ship in lockstep from `main` (one monorepo). Each app's Vercel project 
       "iconImage": "/app-icons/focus-gate.png",
       "color": "purple",
       "versions": {
-        "stable": "https://<vercel-prefix>-focus-gate.vercel.app"
+        "stable": "https://mantas-focus-gate.vercel.app"
       },
       "added_at": "2026-01-01"
     }
@@ -201,7 +197,7 @@ colors: {
 
 ## Supabase project
 
-One shared project for the whole portfolio (iron rule #3). Project ref: `<supabase-project-ref>`.
+One shared project for the whole portfolio (iron rule #3). Project ref: `tsyozhctvotcgqpqrbrr`.
 
 `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` live in the session env vars and are injected automatically into every Vercel project by the setup script. The anon key is public by design (RLS gates every query). The `service_role` key and DB password are never in app code — the owner's password manager only.
 
@@ -273,9 +269,9 @@ With all tokens set and both domains allowlisted, a new app goes from idea to li
 
 1. ✅ **App folder + docs** — scaffold under `apps/<name>` (Next.js 15, Tailwind, Supabase SSR, PWA); it joins the workspace automatically via the `apps/*` glob. **Create `apps/<name>/README.md` and `apps/<name>/CLAUDE.md`** (CLAUDE.md sections: Stack · Conventions · Data model · Gotchas · Current state · Next — see *Per-app context files*). `apps/hub` is the reference implementation to copy from.
 2. ✅ **Register** — add the entry to `apps/hub/config/apps.json` and map its icon in `apps/hub/src/lib/icons.ts`
-3. ✅ **Vercel project** — `node apps/hub/scripts/setup-vercel-project.mjs --repo <repo> --name <vercel-prefix>-<name> --slug <name>` (creates the project, sets Root Directory `apps/<name>` and production branch `main`, injects Supabase env vars). Add the app's `vercel.json` with the `ignoreCommand` so pushes only rebuild what changed.
-4. ✅ **SQL migration** — `POST https://api.supabase.com/v1/projects/<supabase-project-ref>/database/query` (SQL lives in `apps/<name>/supabase`)
-5. ✅ **Auth redirect URL** — `PATCH https://api.supabase.com/v1/projects/<supabase-project-ref>/config/auth`
+3. ✅ **Vercel project** — `node apps/hub/scripts/setup-vercel-project.mjs --repo Projects --name mantas-<name> --slug <name>` (creates the project, sets Root Directory `apps/<name>` and production branch `main`, injects Supabase env vars). Add the app's `vercel.json` with the `ignoreCommand` so pushes only rebuild what changed.
+4. ✅ **SQL migration** — `POST https://api.supabase.com/v1/projects/tsyozhctvotcgqpqrbrr/database/query` (SQL lives in `apps/<name>/supabase`)
+5. ✅ **Auth redirect URL** — `PATCH https://api.supabase.com/v1/projects/tsyozhctvotcgqpqrbrr/config/auth`
 6. ✅ **Commit & push to `main`** — Vercel deploys the new project
 
 **Still manual:** add `GEMINI_API_KEY` and/or `GROQ_API_KEY` in the Vercel dashboard (if the app uses AI) + test on phone.
@@ -293,7 +289,7 @@ Creates a Vercel project, links it to this GitHub repo, sets the production bran
 Directory `apps/<name>`, injects Supabase env vars from session env. Usage:
 
 ```bash
-node apps/hub/scripts/setup-vercel-project.mjs --repo <repo> --name <vercel-prefix>-<name> --slug <name>
+node apps/hub/scripts/setup-vercel-project.mjs --repo Projects --name mantas-<name> --slug <name>
 ```
 
 ---

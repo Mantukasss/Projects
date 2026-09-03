@@ -52,7 +52,7 @@ version still reads or writes does **not** qualify, no matter how unused it look
 SQL lives under each app — `apps/hub/supabase/sql/`, `apps/<name>/supabase/migrations/`. Numbered files (`0001_…`, `0002_…`), each a one-time-apply script. Apply by pasting the file's contents into the Supabase SQL editor, or via the Management API:
 
 ```
-POST https://api.supabase.com/v1/projects/<supabase-project-ref>/database/query
+POST https://api.supabase.com/v1/projects/tsyozhctvotcgqpqrbrr/database/query
 ```
 
 Before opening any migration: re-read this file.

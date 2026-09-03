@@ -12,7 +12,7 @@ The launcher PWA. Google sign-in, then a grid of tiles — one per app — read 
 - **Legacy ESLint** (`.eslintrc.json` + `next.config.js`)
 - Tailwind 3 + Radix Colors, Tabler icons (`@tabler/icons-react`), Supabase SSR (Google OAuth)
 - Extra npm scripts: `typecheck` (`tsc --noEmit`) and `setup-vercel` (`scripts/setup-vercel-project.mjs`, bootstraps new Vercel projects)
-- Prod: Vercel project `<vercel-prefix>-hub`, Root Directory `apps/hub`
+- Prod: Vercel project `mantas-hub`, Root Directory `apps/hub`
 
 ## Conventions
 - The tile registry is `config/apps.json`, read via `src/lib/apps.ts` (`getApps()`, typed `AppDefinition`). Imported at **build time** — edit JSON, then redeploy.
@@ -34,7 +34,7 @@ The launcher PWA. Google sign-in, then a grid of tiles — one per app — read 
 Not yet deployed. The code is complete and working: Google OAuth sign-in/landing, the app
 grid from `apps.json`, PWA install, and service-worker registration. `config/apps.json` now
 carries one entry — `newsdesk` — with a placeholder production URL, because the repo's
-`<vercel-prefix>` placeholder is still unfilled; the URL needs correcting once that Vercel
+`mantas` placeholder is still unfilled; the URL needs correcting once that Vercel
 project exists. `public/app-icons/` is still empty, so the tile renders the Tabler `news`
 glyph fallback rather than a real PWA icon.
 
