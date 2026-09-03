@@ -1,7 +1,14 @@
 # First-time setup
 
-This repo is the infrastructure only — the monorepo tooling, the hub launcher, and the
-rules in `CLAUDE.md` / `SCHEMA_RULES.md`. No portfolio apps yet.
+> **Status: steps 1–3 and 5 are done.** Placeholders are filled (owner `Mantas`, GitHub
+> `Mantukasss/Projects`, Vercel prefix `mantas`, Supabase ref `tsyozhctvotcgqpqrbrr`), the
+> accounts exist, and both Vercel projects (`mantas-hub`, `mantas-newsdesk`) are created and
+> linked. Still open: **step 4** (the hub's SQL + exposing the `hub` schema) and the
+> Supabase auth redirect URLs in step 5 — both needed only for the hub's Google sign-in.
+> `apps/newsdesk` uses no database and no auth, so it needs neither.
+
+This repo is the infrastructure — the monorepo tooling, the hub launcher, and the rules in
+`CLAUDE.md` / `SCHEMA_RULES.md`.
 
 Work top to bottom. Each step is independent of the next except where noted.
 

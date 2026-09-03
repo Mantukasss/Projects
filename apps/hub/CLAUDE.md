@@ -12,7 +12,7 @@ The launcher PWA. Google sign-in, then a grid of tiles — one per app — read 
 - **Legacy ESLint** (`.eslintrc.json` + `next.config.js`)
 - Tailwind 3 + Radix Colors, Tabler icons (`@tabler/icons-react`), Supabase SSR (Google OAuth)
 - Extra npm scripts: `typecheck` (`tsc --noEmit`) and `setup-vercel` (`scripts/setup-vercel-project.mjs`, bootstraps new Vercel projects)
-- Prod: Vercel project `<vercel-prefix>-hub`, Root Directory `apps/hub`
+- Prod: Vercel project `mantas-hub`, Root Directory `apps/hub`
 
 ## Conventions
 - The tile registry is `config/apps.json`, read via `src/lib/apps.ts` (`getApps()`, typed `AppDefinition`). Imported at **build time** — edit JSON, then redeploy.
@@ -31,11 +31,19 @@ The launcher PWA. Google sign-in, then a grid of tiles — one per app — read 
 - This app is also the **reference implementation** for new apps: Supabase SSR auth, PWA manifest + `sw.js`, dark Radix theme. Copy the patterns from here rather than reinventing them.
 
 ## Current state
-Fresh from the infrastructure template and not yet deployed. The code is complete and
-working: Google OAuth sign-in/landing, the app grid from `apps.json`, PWA install, and
-service-worker registration. `config/apps.json` is `{"apps": []}`, so the hub renders its
-empty state ("No apps yet"). `public/app-icons/` is empty.
+Not yet deployed. The code is complete and working: Google OAuth sign-in/landing, the app
+grid from `apps.json`, PWA install, and service-worker registration. `config/apps.json` now
+carries one entry — `newsdesk` — with a placeholder production URL, because the repo's
+`mantas` placeholder is still unfilled; the URL needs correcting once that Vercel
+project exists. `public/app-icons/` is still empty, so the tile renders the Tabler `news`
+glyph fallback rather than a real PWA icon.
+
+A palette bug was fixed here: `<html>` now carries `className="dark"`. Radix Colors v3
+scopes its dark scales to `.dark, .dark-theme` rather than `:root`, so without that class
+every `--mauve-*`/accent token was undefined and the whole design system silently fell back
+to browser defaults. Any new app copied from this one inherits the fix.
 
 ## Next
 - Complete root `SETUP.md` (placeholders, Supabase project, Vercel project, auth redirect URLs), then deploy.
+- Replace the placeholder `newsdesk` URL in `config/apps.json` with the real one after running `scripts/setup-vercel-project.mjs` for it, and drop its icon at `public/app-icons/newsdesk.png`.
 - The reserved `hub.user_app_preferences` table is the obvious hook if/when you want a per-app version picker.

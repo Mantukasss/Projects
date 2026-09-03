@@ -1,3 +1,15 @@
 {
-  "apps": []
+  "apps": [
+    {
+      "slug": "newsdesk",
+      "name": "Newsdesk",
+      "description": "CS2 breaking news, post-ready",
+      "icon": "news",
+      "color": "amber",
+      "versions": {
+        "stable": "https://mantas-newsdesk.vercel.app"
+      },
+      "added_at": "2026-09-03"
+    }
+  ]
 }
