@@ -42,6 +42,8 @@ export default function Feed() {
   const [sources, setSources] = useState<SourceId[]>(DEFAULT_SOURCES);
   const [showSettings, setShowSettings] = useState(false);
   const [cardFor, setCardFor] = useState<FeedItem | null>(null);
+  // Which items have had their card generated, so "no image" clears once one exists.
+  const [carded, setCarded] = useState<string[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -187,7 +189,13 @@ export default function Feed() {
             handle={handle}
             posted={posted.includes(item.id)}
             onTogglePosted={() => togglePosted(item.id)}
-            onMakeCard={() => setCardFor(item)}
+            cardMade={carded.includes(item.id)}
+            onMakeCard={() => {
+              setCardFor(item);
+              setCarded((current) =>
+                current.includes(item.id) ? current : [...current, item.id],
+              );
+            }}
           />
         ))}
         {!loading && items.length === 0 && (

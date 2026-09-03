@@ -50,26 +50,39 @@ export default function QuoteCard({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [ready, setReady] = useState(false);
   const [logo, setLogo] = useState<HTMLImageElement | null>(null);
+  const [subject, setSubject] = useState<HTMLImageElement | null>(null);
+  const [tainted, setTainted] = useState(false);
 
-  /**
-   * Both routes serve from our own origin, so drawing the result does not taint the canvas
-   * and break Save. When the source shipped an image we proxy it; when it did not — the
-   * Liquipedia roster leads — we ask for the team badge by page title, and /api/logo
-   * answers 404 for anything that is not a team, which just leaves the card text-only.
+/**
+   * The badge, by Liquipedia page title. Served from our own origin, so drawing it leaves
+   * the canvas exportable.
    */
   useEffect(() => {
-    const src = item.image
-      ? `/api/image?url=${encodeURIComponent(item.image)}`
-      : item.source === "liquipedia"
-        ? `/api/logo?title=${encodeURIComponent(item.title)}`
-        : null;
-    if (!src) return;
-
+    if (!item.teamPage) return;
     const img = new Image();
     img.onload = () => setLogo(img);
     img.onerror = () => setLogo(null);
-    img.src = src;
-  }, [item.image, item.source, item.title]);
+    const wiki = item.source === "vlr" ? "&wiki=valorant" : "";
+    img.src = `/api/logo?title=${encodeURIComponent(item.teamPage)}${wiki}`;
+  }, [item.teamPage, item.source]);
+
+  /**
+   * The subject photo — the player, the trophy lift, whatever the source shipped.
+   *
+   * Loaded straight from the source, and deliberately not through /api/image: HLTV's CDN
+   * answers a browser and refuses a server, so the proxy 502s on exactly these. That means
+   * it is a cross-origin draw, which taints the canvas and makes Save throw. We attempt it,
+   * and if the export turns out to be blocked we redraw without the photo and say so — a
+   * card that saves beats a prettier one that does not.
+   */
+  useEffect(() => {
+    if (!item.image) return;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => setSubject(img);
+    img.onerror = () => setSubject(null);
+    img.src = item.image;
+  }, [item.image]);
 
   const parsed = splitQuote(item.title);
   // A quote leads with the words and credits the speaker underneath. Anything else leads
@@ -85,6 +98,30 @@ export default function QuoteCard({
     ctx.fillStyle = BG;
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
+    // The subject photo fills the right third, faded into the background so the words stay
+    // the loudest thing on the card. This is the shape the accounts that own this beat use:
+    // a face, a crest, and a line of text.
+    const textWidth = subject ? WIDTH * 0.62 : WIDTH - PADDING * 2;
+    if (subject && subject.width > 0) {
+      const panelX = WIDTH * 0.60;
+      const panelW = WIDTH - panelX;
+      const scale = Math.max(panelW / subject.width, HEIGHT / subject.height);
+      const drawW = subject.width * scale;
+      const drawH = subject.height * scale;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(panelX, 0, panelW, HEIGHT);
+      ctx.clip();
+      ctx.drawImage(subject, panelX + (panelW - drawW) / 2, (HEIGHT - drawH) / 2, drawW, drawH);
+      // Feather the left edge so the photo reads as part of the card, not pasted on.
+      const fade = ctx.createLinearGradient(panelX, 0, panelX + panelW * 0.55, 0);
+      fade.addColorStop(0, BG);
+      fade.addColorStop(1, "rgba(22,22,24,0)");
+      ctx.fillStyle = fade;
+      ctx.fillRect(panelX, 0, panelW, HEIGHT);
+      ctx.restore();
+    }
+
     ctx.fillStyle = SURFACE;
     ctx.fillRect(0, 0, WIDTH, 8);
     ctx.fillStyle = ACCENT;
@@ -94,11 +131,13 @@ export default function QuoteCard({
     // square crest both land at the same optical weight instead of one dwarfing the other.
     let logoBottom = 0;
     if (logo && logo.width > 0 && logo.height > 0) {
-      const BOX = 150;
+      const BOX = subject ? 110 : 150;
       const scale = Math.min(BOX / logo.width, BOX / logo.height);
       const width = logo.width * scale;
       const height = logo.height * scale;
-      ctx.drawImage(logo, WIDTH - PADDING - width, PADDING - 20, width, height);
+      // With a photo on the right, the crest moves left so the two never overlap.
+      const x = subject ? PADDING : WIDTH - PADDING - width;
+      ctx.drawImage(logo, x, PADDING - 20, width, height);
       logoBottom = PADDING - 20 + height;
     }
 
@@ -108,7 +147,7 @@ export default function QuoteCard({
     let lines: string[] = [];
     do {
       ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-      lines = wrap(ctx, headline, WIDTH - PADDING * 2);
+      lines = wrap(ctx, headline, textWidth - PADDING);
       fontSize -= 3;
     } while (lines.length * (fontSize * 1.25) > HEIGHT - PADDING * 2 - 190 && fontSize > 24);
 
@@ -126,7 +165,7 @@ export default function QuoteCard({
     // at two lines rather than letting it run off the edge of the image.
     ctx.font = `500 30px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
     ctx.fillStyle = ACCENT;
-    const subLines = wrap(ctx, attribution, WIDTH - PADDING * 2).slice(0, 2);
+    const subLines = wrap(ctx, attribution, textWidth - PADDING).slice(0, 2);
     subLines.forEach((line, index) => {
       const isLast = index === subLines.length - 1;
       const truncated =
@@ -145,17 +184,24 @@ export default function QuoteCard({
     ctx.fillText(sourceLabel, WIDTH - PADDING - labelWidth, HEIGHT - PADDING + 2);
 
     setReady(true);
-  }, [attribution, handle, headline, item.url, logo]);
+  }, [attribution, handle, headline, item.url, logo, subject]);
 
   useEffect(draw, [draw]);
 
   const download = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const link = document.createElement("a");
-    link.download = `${item.id.replace(/[^a-z0-9]+/gi, "-")}.png`;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
+    try {
+      const link = document.createElement("a");
+      link.download = `${item.id.replace(/[^a-z0-9]+/gi, "-")}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } catch {
+      // The source photo tainted the canvas. Drop it and redraw so the card can be saved;
+      // the photo is still on the feed card and can be saved from there.
+      setTainted(true);
+      setSubject(null);
+    }
   };
 
   return (
@@ -174,6 +220,12 @@ export default function QuoteCard({
           height={HEIGHT}
           className="w-full rounded-xl border border-border"
         />
+        {tainted && (
+          <p className="mt-3 text-xs text-text-muted">
+            The source photo could not be baked into the card — it is redrawn without it.
+            Save the photo from the feed card and attach both.
+          </p>
+        )}
         <div className="mt-4 flex gap-2">
           <button
             onClick={download}

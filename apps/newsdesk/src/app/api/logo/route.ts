@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { USER_AGENT } from "@/lib/sources/fetchXml";
-import { fetchTeamLogo, looksLikeTeam } from "@/lib/sources/liquipediaLogo";
+import { fetchTeamLogo, looksLikeTeam, type Wiki } from "@/lib/sources/liquipediaLogo";
+import { isKnownTeam } from "@/lib/teams";
 
 export const runtime = "nodejs";
 
@@ -17,14 +18,19 @@ export const runtime = "nodejs";
 const ONE_DAY = 60 * 60 * 24;
 
 export async function GET(request: Request) {
-  const title = new URL(request.url).searchParams.get("title");
+  const params = new URL(request.url).searchParams;
+  const title = params.get("title");
   if (!title) return new NextResponse("missing title", { status: 400 });
+  const wiki: Wiki = params.get("wiki") === "valorant" ? "valorant" : "counterstrike";
 
   // Player pages resolve to their current team's badge, which on a transfer story is the
-  // club they may be leaving. Teams only.
-  if (!looksLikeTeam(title)) return new NextResponse("not a team page", { status: 404 });
+  // club they may be leaving. Teams only — but a curated name is trusted outright, since
+  // the shape heuristic rejects real orgs like "The MongolZ" that carry no giveaway word.
+  if (!isKnownTeam(title) && !looksLikeTeam(title)) {
+    return new NextResponse("not a team page", { status: 404 });
+  }
 
-  const logoUrl = await fetchTeamLogo(title);
+  const logoUrl = await fetchTeamLogo(title, wiki);
   if (!logoUrl) return new NextResponse("no logo found", { status: 404 });
 
   const upstream = await fetch(logoUrl, {

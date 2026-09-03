@@ -31,6 +31,11 @@ export interface FeedItem {
   incomplete?: "list" | "number";
   /** The rival account that already covered this, when one has. See rivals.ts. */
   scooped?: string;
+  /**
+   * Liquipedia page title of the team this item is about, when a headline names one. The
+   * card resolves it to a badge so a post about a team goes out wearing that team's crest.
+   */
+  teamPage?: string;
   /** Higher = post this sooner. See score.ts. */
   score: number;
   /** Why it scored what it scored — shown in the UI so the ranking is inspectable. */

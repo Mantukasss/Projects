@@ -34,12 +34,14 @@ export default function ItemCard({
   item,
   handle,
   posted,
+  cardMade,
   onTogglePosted,
   onMakeCard,
 }: {
   item: FeedItem;
   handle: string;
   posted: boolean;
+  cardMade: boolean;
   onTogglePosted: () => void;
   onMakeCard: () => void;
 }) {
@@ -80,8 +82,20 @@ export default function ItemCard({
 
   // A post whose headline promises a list or a number it does not contain must not be
   // copyable. The block is easier to fix than to bypass — one tap loads the detail.
+  /**
+   * A post with no media does not get to leave. In this niche an image is not decoration —
+   * it is what makes a post look like reporting rather than a scraped headline, and a
+   * text-only post gets scrolled past whatever it says.
+   *
+   * "Has media" means the source shipped a photo, or the card was made. Every item can
+   * reach the second state in one tap, so this is a nudge rather than a wall.
+   */
+  const hasMedia = Boolean(draft.image) || Boolean(draft.secondImage) || cardMade;
+
   const blocked =
-    (Boolean(item.incomplete) && detail === null) || (needsTranslation && !translated);
+    (Boolean(item.incomplete) && detail === null) ||
+    (needsTranslation && !translated) ||
+    !hasMedia;
   const resolved = detail !== null && (detail.teams.length > 0 || Boolean(detail.keyFact));
 
   const loadDetail = async () => {
@@ -160,10 +174,13 @@ export default function ItemCard({
       {(draft.image || draft.secondImage) && (
         <div className={`mt-3 grid gap-2 ${draft.secondImage && draft.image ? "grid-cols-2" : "grid-cols-1"}`}>
           {[draft.image, draft.secondImage].filter(Boolean).map((src) => (
+            // Loaded straight from the source. HLTV's image CDN answers a browser and
+            // refuses a server, so routing these through /api/image blanked every player
+            // photo in the feed — the proxy exists for the canvas, not for display.
             // eslint-disable-next-line @next/next/no-img-element
             <img
               key={src}
-              src={`/api/image?url=${encodeURIComponent(src as string)}`}
+              src={src}
               alt=""
               className="w-full rounded-xl border border-border"
               loading="lazy"
@@ -206,6 +223,12 @@ export default function ItemCard({
         </button>
       )}
 
+      {!hasMedia && (
+        <p className="mt-3 text-sm text-coral">
+          No image yet. Posts without one get scrolled past — make the card first.
+        </p>
+      )}
+
       {detail !== null && !resolved && (
         <p className="mt-3 text-sm text-text-muted">
           Nothing found in the article — open it and check before posting.
@@ -231,13 +254,15 @@ export default function ItemCard({
         <button
           onClick={onMakeCard}
           className={`flex min-h-11 items-center justify-center gap-2 rounded-md border text-sm transition-colors duration-150 ease-out ${
-            draft.needsCard
-              ? "border-purple text-purple"
-              : "border-border text-text-muted hover:text-text"
+            !hasMedia
+              ? "border-coral text-coral"
+              : draft.needsCard
+                ? "border-purple text-purple"
+                : "border-border text-text-muted hover:text-text"
           }`}
         >
           <IconPhotoPlus size={18} stroke={1.5} />
-          {draft.needsCard ? "Card needed" : "Make card"}
+          {!hasMedia ? "No image — make one" : draft.needsCard ? "Make card" : "Make card"}
         </button>
         <a
           href={item.url}
