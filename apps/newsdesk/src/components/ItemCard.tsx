@@ -45,7 +45,7 @@ export default function ItemCard({
   onTogglePosted: () => void;
   onMakeCard: () => void;
 }) {
-  const [detail, setDetail] = useState<{ teams: string[]; keyFact: string | null } | null>(null);
+  const [detail, setDetail] = useState<{ teams: string[]; keyFact: string | null; images: string[] } | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [copied, setCopied] = useState<"body" | "reply" | null>(null);
   const [translated, setTranslated] = useState<string | null>(null);
@@ -82,6 +82,14 @@ export default function ItemCard({
 
   // A post whose headline promises a list or a number it does not contain must not be
   // copyable. The block is easier to fix than to bypass — one tap loads the detail.
+  const resolved =
+    detail !== null &&
+    (detail.teams.length > 0 || Boolean(detail.keyFact) || detail.images.length > 0);
+
+  // Images found inside the article — the qualified-teams graphic and the like. The lead
+  // image already arrives with the feed, so only the extra ones are offered here.
+  const extraImages = (detail?.images ?? []).filter((src) => src !== item.image);
+
   /**
    * A post with no media does not get to leave. In this niche an image is not decoration —
    * it is what makes a post look like reporting rather than a scraped headline, and a
@@ -90,13 +98,13 @@ export default function ItemCard({
    * "Has media" means the source shipped a photo, or the card was made. Every item can
    * reach the second state in one tap, so this is a nudge rather than a wall.
    */
-  const hasMedia = Boolean(draft.image) || Boolean(draft.secondImage) || cardMade;
+  const hasMedia =
+    Boolean(draft.image) || Boolean(draft.secondImage) || extraImages.length > 0 || cardMade;
 
   const blocked =
     (Boolean(item.incomplete) && detail === null) ||
     (needsTranslation && !translated) ||
     !hasMedia;
-  const resolved = detail !== null && (detail.teams.length > 0 || Boolean(detail.keyFact));
 
   const loadDetail = async () => {
     setLoadingDetail(true);
@@ -106,9 +114,10 @@ export default function ItemCard({
       setDetail({
         teams: Array.isArray(data.teams) ? data.teams : [],
         keyFact: typeof data.keyFact === "string" ? data.keyFact : null,
+        images: Array.isArray(data.images) ? data.images : [],
       });
     } catch {
-      setDetail({ teams: [], keyFact: null });
+      setDetail({ teams: [], keyFact: null, images: [] });
     } finally {
       setLoadingDetail(false);
     }
@@ -193,6 +202,26 @@ export default function ItemCard({
         <p className="mt-2 text-xs text-text-low">
           Two images: the news, then the game. Attach both.
         </p>
+      )}
+
+      {extraImages.length > 0 && (
+        <div className="mt-3">
+          <p className="mb-2 text-xs uppercase tracking-wide text-text-low">
+            From the article — attach these too
+          </p>
+          <div className={`grid gap-2 ${extraImages.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+            {extraImages.map((src) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={src}
+                src={src}
+                alt=""
+                className="w-full rounded-xl border border-border"
+                loading="lazy"
+              />
+            ))}
+          </div>
+        </div>
       )}
 
       {needsTranslation && !translated && (
