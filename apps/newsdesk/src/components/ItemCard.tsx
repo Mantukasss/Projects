@@ -5,11 +5,12 @@ import {
   IconCheck,
   IconCopy,
   IconExternalLink,
+  IconLanguage,
   IconListDetails,
   IconPhotoPlus,
 } from "@tabler/icons-react";
 import type { FeedItem } from "@/lib/types";
-import { SOURCE_NAME, compose, composeWithTeams, postLength } from "@/lib/compose";
+import { SOURCE_NAME, compose, composeWithDetail, postLength } from "@/lib/compose";
 
 const SOURCE_TONE: Record<FeedItem["source"], string> = {
   hltv: "text-amber",
@@ -42,25 +43,58 @@ export default function ItemCard({
   onTogglePosted: () => void;
   onMakeCard: () => void;
 }) {
-  const [teams, setTeams] = useState<string[] | null>(null);
+  const [detail, setDetail] = useState<{ teams: string[]; keyFact: string | null } | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [copied, setCopied] = useState<"body" | "reply" | null>(null);
+  const [translated, setTranslated] = useState<string | null>(null);
+  const [translating, setTranslating] = useState(false);
+  const [translateError, setTranslateError] = useState<string | null>(null);
 
-  // Once the list is loaded the draft names the teams; until then it is the bare headline.
-  const draft = teams ? composeWithTeams(item, teams) : compose(item);
+  // Cyrillic in the text means this needs translating before it can go out in English.
+  const needsTranslation = /[\u0400-\u04FF]/.test(`${item.title} ${item.summary}`);
 
-  // A post whose headline promises a list it does not contain must not be copyable. The
-  // point of the block is that it is easier to fix than to bypass — one tap loads the list.
-  const blocked = Boolean(item.incomplete) && teams === null;
+  const translate = async () => {
+    setTranslating(true);
+    setTranslateError(null);
+    try {
+      const res = await fetch("/api/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: `${item.title}\n${item.summary}`.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok && data.text) setTranslated(data.text);
+      else setTranslateError(data.error ?? "translation failed");
+    } catch {
+      setTranslateError("translation failed");
+    } finally {
+      setTranslating(false);
+    }
+  };
+
+  // Once the detail is loaded the draft carries the list or the figure; until then it is
+  // the bare headline. A translated post replaces the headline entirely — the Russian is
+  // never what goes out.
+  const source = translated ? { ...item, title: translated, summary: "" } : item;
+  const draft = detail ? composeWithDetail(source, detail) : compose(source);
+
+  // A post whose headline promises a list or a number it does not contain must not be
+  // copyable. The block is easier to fix than to bypass — one tap loads the detail.
+  const blocked =
+    (Boolean(item.incomplete) && detail === null) || (needsTranslation && !translated);
+  const resolved = detail !== null && (detail.teams.length > 0 || Boolean(detail.keyFact));
 
   const loadDetail = async () => {
     setLoadingDetail(true);
     try {
       const res = await fetch(`/api/detail?url=${encodeURIComponent(item.url)}`);
       const data = await res.json();
-      setTeams(Array.isArray(data.teams) ? data.teams : []);
+      setDetail({
+        teams: Array.isArray(data.teams) ? data.teams : [],
+        keyFact: typeof data.keyFact === "string" ? data.keyFact : null,
+      });
     } catch {
-      setTeams([]);
+      setDetail({ teams: [], keyFact: null });
     } finally {
       setLoadingDetail(false);
     }
@@ -104,21 +138,61 @@ export default function ItemCard({
         {/* Once the list is in, the "needs the list" note is stale and reads as a warning
             about a post that has already been fixed. */}
         {(() => {
-          const shown = teams
-            ? item.reasons.filter((reason) => !reason.includes("needs the list"))
+          const shown = resolved
+            ? item.reasons.filter((reason) => !reason.includes("needs the"))
             : item.reasons;
           return shown.length > 0 ? ` · ${shown.join(" · ")}` : null;
         })()}
       </p>
 
-      {draft.image && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={draft.image}
-          alt=""
-          className="mt-3 w-full rounded-xl border border-border"
-          loading="lazy"
-        />
+      {/* Reply 1 is part of the post, not an afterthought: the link lives here because it
+          would cost reach in the body. Showing it as a block makes that the obvious flow
+          rather than something to remember. */}
+      <div className="mt-3 rounded-xl border border-dashed border-border p-3">
+        <p className="mb-1 text-xs uppercase tracking-wide text-text-low">
+          Reply 1 — post this as a comment
+        </p>
+        <pre className="whitespace-pre-wrap break-all font-sans text-sm text-text-muted">
+          {draft.reply}
+        </pre>
+      </div>
+
+      {(draft.image || draft.secondImage) && (
+        <div className={`mt-3 grid gap-2 ${draft.secondImage && draft.image ? "grid-cols-2" : "grid-cols-1"}`}>
+          {[draft.image, draft.secondImage].filter(Boolean).map((src) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={src}
+              src={`/api/image?url=${encodeURIComponent(src as string)}`}
+              alt=""
+              className="w-full rounded-xl border border-border"
+              loading="lazy"
+            />
+          ))}
+        </div>
+      )}
+
+      {draft.secondImage && (
+        <p className="mt-2 text-xs text-text-low">
+          Two images: the news, then the game. Attach both.
+        </p>
+      )}
+
+      {needsTranslation && !translated && (
+        <button
+          onClick={translate}
+          disabled={translating}
+          className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-teal px-3 text-sm text-teal transition-colors duration-150 ease-out disabled:opacity-50"
+        >
+          <IconLanguage size={18} stroke={1.5} />
+          {translating ? "Translating…" : "Russian — translate to English"}
+        </button>
+      )}
+
+      {translateError && (
+        <p className="mt-2 text-xs text-coral">
+          {translateError} — post the original or translate it yourself.
+        </p>
       )}
 
       {blocked && (
@@ -128,13 +202,13 @@ export default function ItemCard({
           className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-amber px-3 text-sm text-amber transition-colors duration-150 ease-out disabled:opacity-50"
         >
           <IconListDetails size={18} stroke={1.5} />
-          {loadingDetail ? "Loading the list…" : "This names nobody — get the list"}
+          {loadingDetail ? "Loading the detail…" : "Missing the specifics — get them"}
         </button>
       )}
 
-      {teams !== null && teams.length === 0 && (
+      {detail !== null && !resolved && (
         <p className="mt-3 text-sm text-text-muted">
-          No teams found in the article — open it and check before posting.
+          Nothing found in the article — open it and check before posting.
         </p>
       )}
 

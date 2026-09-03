@@ -78,7 +78,8 @@ export function scoreItem(item: FeedItem): FeedItem {
   // A headline promising a list it does not contain is not postable until the detail is
   // pulled in, so it should not sit at the top of the feed looking ready.
   const incompletePenalty = item.incomplete ? 20 : 0;
-  if (item.incomplete) reasons.push("names nobody — needs the list");
+  if (item.incomplete === "list") reasons.push("names nobody — needs the list");
+  if (item.incomplete === "number") reasons.push("claims a record — needs the figure");
 
   return {
     ...item,

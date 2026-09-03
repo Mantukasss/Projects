@@ -56,3 +56,17 @@ seconds, which is why it costs nothing to run and works on Vercel's free tier as
 - **VLR.gg** (VALORANT) — works, off by default. One game per account beats two: X ranks an
   account by the audience cluster that engages with it, and two games split that cluster.
   Turn it on for a second, VALORANT-only account rather than mixing it into this one.
+
+## Translating the Russian sources
+
+`newcsgo` and `cstracker` post in Russian. Cards from them are blocked from copying until
+translated, because the edge only pays if the post comes out in English quickly.
+
+Translation needs one free API key, set on the Vercel project as either `GROQ_API_KEY` or
+`GEMINI_API_KEY`. Groq is tried first — this is short, high-volume, latency-sensitive work,
+which is what it is good at — and Gemini is the fallback. With neither key set, `/api/translate`
+answers 501 and the card keeps showing the Russian: the feature is absent, never broken.
+
+Model names are overridable via `GROQ_MODEL` and `GEMINI_MODEL`, because a model name is the
+thing most likely to be retired underneath you. The Gemini default is the rolling alias
+`gemini-flash-latest` — pinned Gemini names lose free-tier quota and then 429 on every call.
