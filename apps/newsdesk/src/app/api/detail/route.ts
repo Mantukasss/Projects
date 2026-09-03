@@ -34,6 +34,20 @@ function teamNamesFrom(body: string): string[] {
   return [...names.values()];
 }
 
+/**
+ * The first sentence carrying a figure, which for a record story is the story: "posting 40
+ * kills in 24 rounds against Total Domination on LAN at BRO Cyber League Season 1".
+ * HLTV leads with it, so the first match is reliably the right one.
+ */
+function firstFactWithNumber(paragraphs: string[]): string | null {
+  for (const paragraph of paragraphs) {
+    for (const sentence of paragraph.split(/(?<=[.!?])\s+/)) {
+      if (/\d/.test(sentence)) return sentence.trim();
+    }
+  }
+  return null;
+}
+
 export async function GET(request: Request) {
   const target = new URL(request.url).searchParams.get("url");
   if (!target) return NextResponse.json({ error: "missing url" }, { status: 400 });
@@ -66,7 +80,7 @@ export async function GET(request: Request) {
   const teams = teamNamesFrom(body);
 
   return NextResponse.json(
-    { teams, paragraphs: paragraphs.slice(0, 8) },
+    { teams, keyFact: firstFactWithNumber(paragraphs), paragraphs: paragraphs.slice(0, 8) },
     { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } },
   );
 }

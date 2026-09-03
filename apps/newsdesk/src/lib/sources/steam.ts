@@ -1,4 +1,4 @@
-import type { FeedItem, Kind } from "../types";
+import type { FeedItem } from "../types";
 import { fetchJson, stripTags } from "./fetchXml";
 
 /**
@@ -26,9 +26,28 @@ interface NewsItem {
 /** Valve's own posts are the story; third-party reprints in the same feed are not. */
 const VALVE_FEEDS = /^(steam_community_announcements|steam_updates|Product Update|Community Announcements)$/i;
 
-function classify(title: string): Kind {
-  if (/\b(update|patch|release notes|hotfix)\b/i.test(title)) return "news";
-  return "news";
+/**
+ * Valve embeds its announcement artwork as a bare URL inside the post body, and Steam's
+ * news API exposes no image field at all — so the only way to get the picture that belongs
+ * with the post is to lift it out of the text.
+ */
+const EMBEDDED_IMAGE = /https:\/\/[^\s"'<>]+\.(?:png|jpe?g|gif)/i;
+
+/**
+ * Patch notes arrive as run-together prose: "provide custom UI.Panel, Label, Image and
+ * Button panel types are supported." Steam's own formatting is stripped by maxlength, so
+ * sentence boundaries lose their spaces and the text reads as a typo without this.
+ */
+function tidy(text: string): string {
+  return text
+    .replace(EMBEDDED_IMAGE, " ")
+    .replace(/\\+/g, " ")
+    // Colons and full stops lose their trailing space; URLs are already stripped above, so
+    // there is no "https:" left to damage by spacing after a colon.
+    .replace(/([.!?])(?=[A-Za-z])/g, "$1 ")
+    .replace(/(\w):(?=\w)/g, "$1: ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export async function fetchSteam(): Promise<FeedItem[]> {
@@ -45,14 +64,17 @@ export async function fetchSteam(): Promise<FeedItem[]> {
     const label = (raw.feedlabel ?? "").trim();
     if (label && !VALVE_FEEDS.test(label)) return [];
 
+    const contents = stripTags(raw.contents ?? "");
+
     return [
       {
         id: `steam:${raw.gid ?? url}`,
         source: "steam",
-        kind: classify(title),
+        kind: "news",
         title,
-        summary: stripTags(raw.contents ?? "").slice(0, 240),
+        summary: tidy(contents).slice(0, 400),
         url,
+        image: contents.match(EMBEDDED_IMAGE)?.[0],
         publishedAt: new Date((raw.date ?? Date.now() / 1000) * 1000).toISOString(),
         score: 0,
         reasons: [],

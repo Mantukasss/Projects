@@ -63,6 +63,36 @@ function readWikiEdit(item: FeedItem): { subject: string; section: string; burst
   };
 }
 
+/**
+ * Counter-Strike 2's store artwork, from Steam's own CDN.
+ *
+ * A patch-notes post goes out as two images: the notes themselves, and the game. One image
+ * of dense text scrolls past; the pairing reads as an event. Valve serves this publicly for
+ * app 730 and it never changes, so it costs nothing to attach.
+ */
+const CS2_ARTWORK =
+  "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/730/capsule_616x353.jpg";
+
+/** Takes whole sentences up to a budget, so a post never ends mid-word. */
+function firstSentences(text: string, budget: number): string {
+  if (!text) return "";
+  let out = "";
+  for (const sentence of text.split(/(?<=[.!?])\s+/)) {
+    if (out && (out + " " + sentence).length > budget) break;
+    out = out ? `${out} ${sentence}` : sentence;
+    if (out.length >= budget) break;
+  }
+  return out.length > budget ? `${out.slice(0, budget).replace(/\s+\S*$/, "")}…` : out;
+}
+
+/** Valve's own posts about the game — the ones that deserve the two-image treatment. */
+function isGameUpdate(item: FeedItem): boolean {
+  return (
+    item.source === "steam" ||
+    (item.source === "telegram" && /\b(update|обнов|сборк|build)\b/i.test(item.title))
+  );
+}
+
 export function compose(item: FeedItem): Draft {
   const emoji = KIND_EMOJI[item.kind];
   let body: string;
@@ -82,6 +112,13 @@ export function compose(item: FeedItem): Draft {
       : `${UNCONFIRMED} Liquipedia just edited ${subject}` +
         (section ? ` — "${section}"` : "") +
         `\n\nNot confirmed. Watching for an announcement.`;
+  } else if (item.source === "steam") {
+    // Valve titles every patch "Counter-Strike 2 Update", which is a headline that tells a
+    // reader nothing. What changed is in the body, so the body leads and the title frames.
+    const detail = firstSentences(item.summary, 200);
+    body = detail
+      ? `${CONFIRMED} ${item.title}\n\n${detail}\n\n${emoji}`
+      : `${CONFIRMED} ${item.title}\n\n${emoji}`;
   } else if (item.source === "telegram") {
     // Telegram carries both, and the channels say which: Russian posts mark rumours with
     // "слух". Anything unresolved stays labelled a rumour rather than promoted to fact.
@@ -97,6 +134,7 @@ export function compose(item: FeedItem): Draft {
     body,
     reply: `Source: ${SOURCE_NAME[item.source]}\n${item.url}`,
     image: item.image,
+    secondImage: isGameUpdate(item) ? CS2_ARTWORK : undefined,
     needsCard: !item.image,
   };
 }
@@ -107,20 +145,43 @@ export function compose(item: FeedItem): Draft {
  * Used after /api/detail resolves an article's team list, so "Closed Qualifier teams
  * announced" becomes a post that actually names them.
  */
-export function composeWithTeams(item: FeedItem, teams: string[]): Draft {
+export function composeWithDetail(
+  item: FeedItem,
+  detail: { teams?: string[]; keyFact?: string | null },
+): Draft {
   const base = compose(item);
-  if (teams.length === 0) return base;
+  const teams = detail.teams ?? [];
 
-  // A wall of thirty names is not readable on a phone. Name the ones that fit and count
-  // the rest honestly, rather than silently truncating.
-  const shown = teams.slice(0, 10);
-  const remaining = teams.length - shown.length;
-  const list = shown.join(", ") + (remaining > 0 ? ` +${remaining} more` : "");
+  // A record story mentions plenty of teams in passing; listing them would be nonsense.
+  // The promise the headline broke decides which detail repairs it.
+  if (item.incomplete === "number" && detail.keyFact) {
+    return {
+      ...base,
+      body: `${CONFIRMED} ${item.title}\n\n${detail.keyFact}\n\n${KIND_EMOJI[item.kind]}`,
+    };
+  }
 
-  return {
-    ...base,
-    body: `${CONFIRMED} ${item.title}\n\n${list}\n\n${KIND_EMOJI[item.kind]}`,
-  };
+  if (teams.length > 0 && item.incomplete !== "number") {
+    // A wall of thirty names is not readable on a phone. Name the ones that fit and count
+    // the rest honestly, rather than silently truncating.
+    const shown = teams.slice(0, 10);
+    const remaining = teams.length - shown.length;
+    const list = shown.join(", ") + (remaining > 0 ? ` +${remaining} more` : "");
+    return {
+      ...base,
+      body: `${CONFIRMED} ${item.title}\n\n${list}\n\n${KIND_EMOJI[item.kind]}`,
+    };
+  }
+
+  if (detail.keyFact) {
+    // The figure IS the story for a record post, so it leads and the headline supports it.
+    return {
+      ...base,
+      body: `${CONFIRMED} ${item.title}\n\n${detail.keyFact}\n\n${KIND_EMOJI[item.kind]}`,
+    };
+  }
+
+  return base;
 }
 
 /** X counts a post at 280 characters for a free account; Premium raises the ceiling. */
