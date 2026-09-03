@@ -48,6 +48,21 @@ function firstFactWithNumber(paragraphs: string[]): string | null {
   return null;
 }
 
+/**
+ * The article's own photographs.
+ *
+ * HLTV serves two kinds of image from the same CDN: `/gallerypicture/` is editorial — the
+ * graphic listing who qualified, the trophy shot — while `/teamlogo/` is a 100px icon used
+ * in inline team links. Only the first kind is worth attaching to a post; a wall of tiny
+ * crests is not media. The RSS feed carries just the lead image, so anything further into
+ * the article can only be found here.
+ */
+function articleImages(body: string): string[] {
+  const found = [...body.matchAll(/<img[^>]+src="(https:\/\/img-cdn\.hltv\.org\/gallerypicture\/[^"]+)"/g)]
+    .map((match) => decodeEntities(match[1]));
+  return [...new Set(found)].slice(0, 4);
+}
+
 export async function GET(request: Request) {
   const target = new URL(request.url).searchParams.get("url");
   if (!target) return NextResponse.json({ error: "missing url" }, { status: 400 });
@@ -80,7 +95,12 @@ export async function GET(request: Request) {
   const teams = teamNamesFrom(body);
 
   return NextResponse.json(
-    { teams, keyFact: firstFactWithNumber(paragraphs), paragraphs: paragraphs.slice(0, 8) },
+    {
+      teams,
+      keyFact: firstFactWithNumber(paragraphs),
+      images: articleImages(body),
+      paragraphs: paragraphs.slice(0, 8),
+    },
     { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } },
   );
 }

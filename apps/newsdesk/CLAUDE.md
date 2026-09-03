@@ -63,6 +63,13 @@ and the app gains Google sign-in copied from `apps/hub`.
   page's whole image list, which includes every opponent from its match tables, so MOUZ
   resolved to "4klogo" and Imperial Esports to "Red Canids". Only section 0 gives the team's
   own badge. `prop=pageimages` returns nothing — the extension is not populated here.
+- **An env-var change alone cannot be deployed in this repo.** Redeploying the same commit
+  makes `scripts/vercel-ignore.sh` compare it against itself, find no diff, exit 0, and
+  Vercel CANCELS the build — the new variable never reaches the runtime. Push a real commit
+  instead. This cost a confused half-hour once; it will again.
+- **HLTV article images come in two kinds.** `/gallerypicture/` is editorial — the graphic
+  listing who qualified, the trophy shot — and worth attaching to a post. `/teamlogo/` is a
+  100px inline icon and is not media. `/api/detail` returns only the first kind.
 - **HLTV's image CDN answers a browser and refuses a server.** Its photos must be rendered
   from the source URL directly; routing them through `/api/image` returns 502 and blanks
   every player photo in the feed. The proxy exists for the canvas, not for display.
