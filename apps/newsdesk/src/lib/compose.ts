@@ -18,8 +18,17 @@ import type { Draft, FeedItem } from "./types";
 
 const HANDLE = "@your_handle";
 
-/** Ozzny's signature "breaking" marker, plus a per-kind second emoji. */
-const MARK = "‼️";
+/**
+ * The label that opens the post. Taken from what the incumbent actually writes: his posts
+ * open "JUST IN:" for a confirmed fact and "RUMOR:" for an unconfirmed one, and he credits
+ * no source in the text at all — the screenshot carries the proof.
+ *
+ * The label is doing real work. It tells a reader in two words how much to trust the line,
+ * which is the whole currency of a news account, and it makes being wrong survivable: a
+ * rumor that does not pan out costs nothing if it was posted as a rumor.
+ */
+const CONFIRMED = "JUST IN:";
+const UNCONFIRMED = "RUMOR:";
 
 const KIND_EMOJI: Record<FeedItem["kind"], string> = {
   quote: "🎙️",
@@ -33,6 +42,7 @@ const SOURCE_NAME: Record<FeedItem["source"], string> = {
   liquipedia: "Liquipedia",
   reddit: "r/GlobalOffensive",
   steam: "Valve",
+  telegram: "Telegram",
   vlr: "VLR.gg",
 };
 
@@ -61,25 +71,26 @@ export function compose(item: FeedItem): Draft {
     const parsed = splitQuote(item.title);
     // The quote goes on its own line so the eye lands on the words, not the attribution.
     body = parsed
-      ? `${MARK} ${parsed.speaker}:\n\n"${parsed.quote}"\n\n${emoji}`
-      : `${MARK} ${item.title}\n\n${emoji}`;
+      ? `${parsed.speaker}:\n\n"${parsed.quote}"\n\n${emoji}`
+      : `${CONFIRMED} ${item.title}\n\n${emoji}`;
   } else if (item.kind === "roster" && item.source === "liquipedia") {
-    // Deliberately hedged. This is a wiki edit, not an announcement — writing it as
-    // confirmed news is how a breaking-news account burns the trust it runs on.
+    // A wiki edit is not an announcement, so it goes out labelled as what it is. Writing
+    // it as confirmed news is how a breaking-news account burns the trust it runs on.
     const { subject, section, burst } = readWikiEdit(item);
-    // The burst body names the pages: "Imperial + 4 players edited at once" is the story,
-    // and a reader can check it themselves. Vague hype would not survive being wrong.
     body = burst
-      ? `${emoji} Something is moving around ${subject}.\n\n${item.summary}\n\nUnconfirmed — watching for an announcement.`
-      : `${emoji} Liquipedia just edited ${subject}` +
+      ? `${UNCONFIRMED} something is moving around ${subject}.\n\n${item.summary}\n\nNot confirmed — watching for an announcement.`
+      : `${UNCONFIRMED} Liquipedia just edited ${subject}` +
         (section ? ` — "${section}"` : "") +
-        `\n\nUnconfirmed. Watching for an announcement.`;
-  } else if (item.kind === "roster") {
-    body = `${MARK} ${item.title}\n\n${emoji}`;
-  } else if (item.kind === "result") {
-    body = `${MARK} ${item.title}\n\n${emoji}`;
+        `\n\nNot confirmed. Watching for an announcement.`;
+  } else if (item.source === "telegram") {
+    // Telegram carries both, and the channels say which: Russian posts mark rumours with
+    // "слух". Anything unresolved stays labelled a rumour rather than promoted to fact.
+    const rumoured = /\b(слух|rumou?r|reportedly|apparently)\b/i.test(
+      `${item.title} ${item.summary}`,
+    );
+    body = `${rumoured ? UNCONFIRMED : CONFIRMED} ${item.title}\n\n${emoji}`;
   } else {
-    body = `${MARK} ${item.title}\n\n${emoji}`;
+    body = `${CONFIRMED} ${item.title}\n\n${emoji}`;
   }
 
   return {
@@ -90,9 +101,31 @@ export function compose(item: FeedItem): Draft {
   };
 }
 
+/**
+ * Rebuilds the draft with the specifics the headline promised.
+ *
+ * Used after /api/detail resolves an article's team list, so "Closed Qualifier teams
+ * announced" becomes a post that actually names them.
+ */
+export function composeWithTeams(item: FeedItem, teams: string[]): Draft {
+  const base = compose(item);
+  if (teams.length === 0) return base;
+
+  // A wall of thirty names is not readable on a phone. Name the ones that fit and count
+  // the rest honestly, rather than silently truncating.
+  const shown = teams.slice(0, 10);
+  const remaining = teams.length - shown.length;
+  const list = shown.join(", ") + (remaining > 0 ? ` +${remaining} more` : "");
+
+  return {
+    ...base,
+    body: `${CONFIRMED} ${item.title}\n\n${list}\n\n${KIND_EMOJI[item.kind]}`,
+  };
+}
+
 /** X counts a post at 280 characters for a free account; Premium raises the ceiling. */
 export function postLength(body: string): number {
   return [...body].length;
 }
 
-export { HANDLE, SOURCE_NAME, splitQuote };
+export { HANDLE, SOURCE_NAME, CONFIRMED, UNCONFIRMED, splitQuote };

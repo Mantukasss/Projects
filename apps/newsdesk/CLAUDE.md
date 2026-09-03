@@ -72,6 +72,28 @@ and the app gains Google sign-in copied from `apps/hub`.
   (free, runs in-database, minute-level), not Vercel cron.
 - No source image means the quote card is the media. `needsCard` on the draft flags it and
   the card button turns purple.
+- **Telegram is read through `t.me/s/<channel>`** — plain HTML, no API, no key, any public
+  channel's last ~20 posts. `cstracker` reports Valve build changes detected from Steam
+  depots, which lands before any announcement; `newcsgo` breaks CIS roster news ahead of
+  English outlets. Both are Russian and arrive untranslated.
+- **`rivals.ts` is not a content source.** It reads what the incumbents already posted so
+  the feed can say "you are not first". Its matcher is deliberately strict — a false
+  positive hides a real scoop, which costs far more than an occasional duplicate.
+- **Two heuristics here have already been wrong in instructive ways.** `incomplete.ts` once
+  matched a bare "results" and flagged the quote `zont1x: "...significant results..."`; and
+  its "already carries specifics" test accepted anything scoreline-shaped, which swallowed
+  "will run from September 9-13" and let the emptiest post through. Dates look like scores.
+  Prefer requiring the announcing verb and comma-separated proper nouns over clever
+  shortcuts.
+- **Team names come from HLTV's anchor text, not the URL slug.** Rebuilding from the slug
+  gave "Mouz", "9Z" and "THE Mongolz" instead of "MOUZ", "9z" and "The MongolZ".
+
+### Post format
+Posts open `JUST IN:` or `RUMOR:` and credit no source in the text. Both come from reading
+what the incumbent actually publishes: the label tells a reader in two words how much to
+trust the line, and it makes being wrong survivable — a rumour that does not pan out costs
+nothing if it went out labelled a rumour. Attribution lives in the media and in reply 1,
+never in the body.
 
 ## Current state
 **Live at https://mantas-newsdesk.vercel.app** and verified there: the deployed `/api/feed`
@@ -97,6 +119,7 @@ every git-triggered build, so it was removed here to let pushes deploy.
 
 ## Next
 - Deploy: run `node apps/hub/scripts/setup-vercel-project.mjs --repo projects --name mantas-newsdesk --slug newsdesk`, then fix the real URL in `apps/hub/config/apps.json`.
+- Translate and classify the Russian Telegram posts. Needs a free `GROQ_API_KEY` or `GEMINI_API_KEY` added to the Vercel project — neither is set today, which is why `looksLikeNews` is a regex rather than comprehension.
 - Add the streamer layer: Twitch Helix for live/offline transitions and clip-view velocity, which finds a viral moment before it is viral on X. Needs a free Twitch app (client id + secret).
 - Add a Polymarket detector: `https://data-api.polymarket.com` is public and unauthenticated, so large position opens by top-ranked wallets are free to compute and nobody is posting them in a clean format.
 - Push instead of pull, once the feed proves itself: Supabase `pg_cron` + `pg_net` on a one-minute schedule, writing new items to a table and firing a web push.

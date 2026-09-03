@@ -11,6 +11,7 @@ import type { FeedItem } from "./types";
 /** How much we trust the source to be both accurate and citable. */
 const SOURCE_WEIGHT: Record<FeedItem["source"], number> = {
   steam: 34, // Valve announcing its own game is as authoritative as it gets
+  telegram: 32, // where the scene talks first, and where a Valve build change shows up
   hltv: 30,
   liquipedia: 26, // fast and often first, but unverified
   vlr: 20,
@@ -68,9 +69,22 @@ export function scoreItem(item: FeedItem): FeedItem {
   const mediaPenalty = item.image ? 0 : 6;
   if (!item.image) reasons.push("no source image — card needed");
 
+  // Already posted by an incumbent. Heavily demoted rather than dropped: it is sometimes
+  // still worth covering, but it is never worth covering FIRST, and the feed exists to
+  // surface what is still yours to break.
+  const scoopedPenalty = item.scooped ? 55 : 0;
+  if (item.scooped) reasons.push(`already posted by ${item.scooped}`);
+
+  // A headline promising a list it does not contain is not postable until the detail is
+  // pulled in, so it should not sit at the top of the feed looking ready.
+  const incompletePenalty = item.incomplete ? 20 : 0;
+  if (item.incomplete) reasons.push("names nobody — needs the list");
+
   return {
     ...item,
-    score: Math.round(freshness + source + kind + burst + heatHits * 9 - mediaPenalty),
+    score: Math.round(
+      freshness + source + kind + burst + heatHits * 9 - mediaPenalty - scoopedPenalty - incompletePenalty,
+    ),
     reasons,
   };
 }

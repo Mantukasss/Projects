@@ -5,6 +5,9 @@ import { fetchHltv } from "@/lib/sources/hltv";
 import { fetchLiquipedia } from "@/lib/sources/liquipedia";
 import { fetchReddit } from "@/lib/sources/reddit";
 import { fetchSteam } from "@/lib/sources/steam";
+import { fetchTelegram } from "@/lib/sources/telegram";
+import { alreadyCovered, fetchRivalPosts } from "@/lib/sources/rivals";
+import { markIncomplete } from "@/lib/incomplete";
 import { fetchVlr } from "@/lib/sources/vlr";
 import { staleOnError } from "@/lib/sources/staleCache";
 
@@ -16,13 +19,14 @@ const SOURCES = {
   liquipedia: fetchLiquipedia,
   reddit: fetchReddit,
   steam: fetchSteam,
+  telegram: fetchTelegram,
   vlr: fetchVlr,
 } as const;
 
 type SourceKey = keyof typeof SOURCES;
 
 /** VLR is the only source off by default — one game per account beats two (see vlr.ts). */
-const DEFAULT_SOURCES: SourceKey[] = ["hltv", "liquipedia", "steam", "reddit"];
+const DEFAULT_SOURCES: SourceKey[] = ["hltv", "liquipedia", "steam", "telegram", "reddit"];
 
 export async function GET(request: Request) {
   const requested = new URL(request.url).searchParams.get("sources");
@@ -52,7 +56,17 @@ export async function GET(request: Request) {
     }
   });
 
-  const ranked = dedupe(items.map(scoreItem)).sort((a, b) => b.score - a.score);
+  // What the incumbents have already posted. Never a source of items — only the answer to
+  // "am I late?". A failure here must not cost us the feed, so it degrades to "unknown".
+  const rivals = await fetchRivalPosts().catch(() => []);
+
+  const annotated = items.map((item) => {
+    const flagged = markIncomplete(item);
+    const scooped = alreadyCovered(flagged.title, flagged.summary, rivals);
+    return scooped ? { ...flagged, scooped } : flagged;
+  });
+
+  const ranked = dedupe(annotated.map(scoreItem)).sort((a, b) => b.score - a.score);
 
   return NextResponse.json(
     { items: ranked.slice(0, 60), errors, fetchedAt: new Date().toISOString() },

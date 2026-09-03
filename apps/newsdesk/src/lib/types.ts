@@ -1,4 +1,10 @@
-export type SourceId = "hltv" | "liquipedia" | "reddit" | "steam" | "vlr";
+export type SourceId =
+  | "hltv"
+  | "liquipedia"
+  | "reddit"
+  | "steam"
+  | "telegram"
+  | "vlr";
 
 /** How the item should be turned into a post. Drives the template in compose.ts. */
 export type Kind = "quote" | "roster" | "result" | "news";
@@ -16,6 +22,14 @@ export interface FeedItem {
   publishedAt: string;
   /** Direct image URL from the source, when it ships one. */
   image?: string;
+  /**
+   * Set when the headline promises a list — teams, a lineup, results — that the post itself
+   * does not contain. Such a post is not postable as-is; the card blocks it until the
+   * detail is pulled in. See /api/detail.
+   */
+  incomplete?: boolean;
+  /** The rival account that already covered this, when one has. See rivals.ts. */
+  scooped?: string;
   /** Higher = post this sooner. See score.ts. */
   score: number;
   /** Why it scored what it scored — shown in the UI so the ranking is inspectable. */
