@@ -3,18 +3,11 @@ import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Personal Apps",
-  description: "A launcher for your personal apps.",
+  title: "Newsdesk",
+  description: "CS2 breaking-news console — draft a post in one tap.",
   manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Personal Apps",
-  },
-  icons: {
-    icon: "/icon.svg",
-    apple: "/icon.svg",
-  },
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Newsdesk" },
+  icons: { icon: "/icon.svg", apple: "/icon.svg" },
 };
 
 export const viewport: Viewport = {
@@ -24,11 +17,7 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark">
       <body className="font-sans">
