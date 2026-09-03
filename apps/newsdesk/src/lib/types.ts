@@ -1,4 +1,4 @@
-export type SourceId = "hltv" | "liquipedia" | "reddit" | "vlr";
+export type SourceId = "hltv" | "liquipedia" | "reddit" | "steam" | "vlr";
 
 /** How the item should be turned into a post. Drives the template in compose.ts. */
 export type Kind = "quote" | "roster" | "result" | "news";

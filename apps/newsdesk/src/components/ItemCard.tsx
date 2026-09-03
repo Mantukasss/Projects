@@ -14,6 +14,7 @@ const SOURCE_TONE: Record<FeedItem["source"], string> = {
   hltv: "text-amber",
   liquipedia: "text-purple",
   reddit: "text-coral",
+  steam: "text-blue",
   vlr: "text-teal",
 };
 

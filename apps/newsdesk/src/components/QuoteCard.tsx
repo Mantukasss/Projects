@@ -49,6 +49,27 @@ export default function QuoteCard({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [ready, setReady] = useState(false);
+  const [logo, setLogo] = useState<HTMLImageElement | null>(null);
+
+  /**
+   * Both routes serve from our own origin, so drawing the result does not taint the canvas
+   * and break Save. When the source shipped an image we proxy it; when it did not — the
+   * Liquipedia roster leads — we ask for the team badge by page title, and /api/logo
+   * answers 404 for anything that is not a team, which just leaves the card text-only.
+   */
+  useEffect(() => {
+    const src = item.image
+      ? `/api/image?url=${encodeURIComponent(item.image)}`
+      : item.source === "liquipedia"
+        ? `/api/logo?title=${encodeURIComponent(item.title)}`
+        : null;
+    if (!src) return;
+
+    const img = new Image();
+    img.onload = () => setLogo(img);
+    img.onerror = () => setLogo(null);
+    img.src = src;
+  }, [item.image, item.source, item.title]);
 
   const parsed = splitQuote(item.title);
   // A quote leads with the words and credits the speaker underneath. Anything else leads
@@ -69,6 +90,18 @@ export default function QuoteCard({
     ctx.fillStyle = ACCENT;
     ctx.fillRect(0, 0, 220, 8);
 
+    // The badge sits top-right, letterboxed into a fixed box so a wide wordmark and a
+    // square crest both land at the same optical weight instead of one dwarfing the other.
+    let logoBottom = 0;
+    if (logo && logo.width > 0 && logo.height > 0) {
+      const BOX = 150;
+      const scale = Math.min(BOX / logo.width, BOX / logo.height);
+      const width = logo.width * scale;
+      const height = logo.height * scale;
+      ctx.drawImage(logo, WIDTH - PADDING - width, PADDING - 20, width, height);
+      logoBottom = PADDING - 20 + height;
+    }
+
     // Headline. Shrink the type until the quote fits rather than truncating it —
     // a cut-off quote reads as sloppy and sloppy costs credibility.
     let fontSize = 62;
@@ -83,7 +116,7 @@ export default function QuoteCard({
     ctx.textBaseline = "top";
     const lineHeight = fontSize * 1.28;
     const blockHeight = lines.length * lineHeight;
-    let y = Math.max(PADDING + 10, (HEIGHT - 210 - blockHeight) / 2);
+    let y = Math.max(PADDING + 10, logoBottom + 30, (HEIGHT - 210 - blockHeight) / 2);
     for (const line of lines) {
       ctx.fillText(line, PADDING, y);
       y += lineHeight;
@@ -112,7 +145,7 @@ export default function QuoteCard({
     ctx.fillText(sourceLabel, WIDTH - PADDING - labelWidth, HEIGHT - PADDING + 2);
 
     setReady(true);
-  }, [attribution, handle, headline, item.url]);
+  }, [attribution, handle, headline, item.url, logo]);
 
   useEffect(draw, [draw]);
 

@@ -43,11 +43,16 @@ npm run dev --workspace newsdesk
 No database, no API keys, no cron. The feed is fetched on request and cached for 60–90
 seconds, which is why it costs nothing to run and works on Vercel's free tier as-is.
 
+- **Watches Valve** through Steam's news API for Counter-Strike 2. A game update is the one
+  story every player cares about at once, it lands with no warning, and it is unauthenticated
+  to read.
+- **Watches r/GlobalOffensive** as early warning — clips and drama surface there before the
+  sites write them up.
+- **Attaches the team badge** to roster leads, pulled from the team's Liquipedia infobox, so
+  a roster post ships with media rather than as bare text.
+
 ## Sources that are wired but off
 
 - **VLR.gg** (VALORANT) — works, off by default. One game per account beats two: X ranks an
   account by the audience cluster that engages with it, and two games split that cluster.
   Turn it on for a second, VALORANT-only account rather than mixing it into this one.
-- **r/GlobalOffensive** — works from a home connection, 429s from any datacenter IP,
-  including every serverless host. Enabling it needs a free Reddit OAuth app (script type,
-  100 requests/minute) and a token exchange. Until then the feed omits it cleanly.

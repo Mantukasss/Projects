@@ -134,7 +134,7 @@ export async function fetchLiquipedia(): Promise<FeedItem[]> {
   const parsed = (await fetchJson(API, 90)) as { query?: { recentchanges?: Change[] } };
   const groups = cluster(collect(parsed.query?.recentchanges ?? []));
 
-  return groups.flatMap((group): FeedItem[] => {
+  const items = groups.flatMap((group): FeedItem[] => {
     const lead = leadOf(group);
 
     if (group.length >= BURST_MIN_PAGES) {
@@ -179,4 +179,11 @@ export async function fetchLiquipedia(): Promise<FeedItem[]> {
         reasons: [],
       }));
   });
+
+  // Badges are deliberately NOT fetched here. Each one costs a separate Liquipedia parse
+  // request that cannot be batched, and doing them per refresh — in parallel, for every
+  // team in the feed — reliably tripped Liquipedia's rate limiter and returned 429 for all
+  // of them. The card fetches its own badge on demand instead, via /api/logo, so only the
+  // team you actually open costs a request. See liquipediaLogo.ts.
+  return items;
 }

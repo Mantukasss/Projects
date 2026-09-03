@@ -47,8 +47,26 @@ and the app gains Google sign-in copied from `apps/hub`.
   is a ranking bonus only. Do not "fix" this by requiring the keyword again.
 - **A burst is one story.** Several pages edited in one window get collapsed into a single
   item. Emitting one card per page produced ten posts about one roster shuffle.
-- **Reddit 429s from any datacenter IP** regardless of User-Agent — verified. It needs a
-  free Reddit OAuth app, so it is off by default.
+- **Reddit's rate limiting is per-IP, so it depends who is asking.** It refuses this repo's
+  build sandbox (whose egress policy blocks it outright) and answers Vercel's runtime. An
+  earlier note here claimed all datacenter ranges were blocked; that was wrong.
+- **The XML parser caps entity expansion at 1000 by default** to blunt "billion laughs"
+  bombs. Reddit escapes each post's full HTML into its Atom `<content>` and runs past 1200,
+  which failed the whole source with "Entity expansion limit exceeded: 1250 > 1000". The cap
+  is raised, not removed, in `fetchXml.ts`.
+- **Team badges are fetched on demand, never with the feed.** Each costs one Liquipedia
+  `parse` request that cannot be batched; resolving every team on every refresh, in
+  parallel, tripped the rate limiter and returned 429 for all of them. `/api/logo` resolves
+  one team when you open its card. Misses cache for 5 minutes, not a day — caching a
+  transient 429 for 24h blanks every badge until tomorrow.
+- **Logos come from the infobox, not `prop=images`.** The batched route returns a team
+  page's whole image list, which includes every opponent from its match tables, so MOUZ
+  resolved to "4klogo" and Imperial Esports to "Red Canids". Only section 0 gives the team's
+  own badge. `prop=pageimages` returns nothing — the extension is not populated here.
+- **Never resolve a badge for a player page.** A player's infobox shows their *current*
+  team, which on a transfer story is the club they may be leaving. `/api/logo` 404s on them.
+- **`/api/image` is allowlisted on purpose.** An open image proxy lets anyone use the
+  deployment to fetch arbitrary URLs, including private addresses on the host network.
 - **Vercel Hobby caps cron at once per day**, which is why this app is pull-based: it
   fetches when you open it. Push notifications would need Supabase `pg_cron` + `pg_net`
   (free, runs in-database, minute-level), not Vercel cron.

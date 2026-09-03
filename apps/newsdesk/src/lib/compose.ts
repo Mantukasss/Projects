@@ -32,6 +32,7 @@ const SOURCE_NAME: Record<FeedItem["source"], string> = {
   hltv: "HLTV",
   liquipedia: "Liquipedia",
   reddit: "r/GlobalOffensive",
+  steam: "Valve",
   vlr: "VLR.gg",
 };
 

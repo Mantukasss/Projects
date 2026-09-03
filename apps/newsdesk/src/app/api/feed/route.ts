@@ -4,6 +4,7 @@ import { dedupe, scoreItem } from "@/lib/score";
 import { fetchHltv } from "@/lib/sources/hltv";
 import { fetchLiquipedia } from "@/lib/sources/liquipedia";
 import { fetchReddit } from "@/lib/sources/reddit";
+import { fetchSteam } from "@/lib/sources/steam";
 import { fetchVlr } from "@/lib/sources/vlr";
 import { staleOnError } from "@/lib/sources/staleCache";
 
@@ -14,16 +15,14 @@ const SOURCES = {
   hltv: fetchHltv,
   liquipedia: fetchLiquipedia,
   reddit: fetchReddit,
+  steam: fetchSteam,
   vlr: fetchVlr,
 } as const;
 
 type SourceKey = keyof typeof SOURCES;
 
-/**
- * VLR is off because one game per account beats two (see vlr.ts); Reddit is off because
- * it blocks datacenter IPs without an OAuth app (see reddit.ts). Both stay one tap away.
- */
-const DEFAULT_SOURCES: SourceKey[] = ["hltv", "liquipedia"];
+/** VLR is the only source off by default — one game per account beats two (see vlr.ts). */
+const DEFAULT_SOURCES: SourceKey[] = ["hltv", "liquipedia", "steam", "reddit"];
 
 export async function GET(request: Request) {
   const requested = new URL(request.url).searchParams.get("sources");

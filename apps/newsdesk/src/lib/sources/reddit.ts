@@ -16,12 +16,15 @@ interface AtomEntry {
  * Reddit is the early-warning channel, not a citable source: clips and drama surface
  * here before the sites write them up. score.ts weights it below HLTV for that reason.
  *
- * OFF BY DEFAULT, and not because of the content. Reddit rate-limits its public .rss
- * endpoints by IP and returns 429 to datacenter ranges — which is every serverless host,
- * this one included. Verified: the same request succeeds from a residential IP and fails
- * from here under any User-Agent. Turning it on needs a free Reddit OAuth app (script
- * type, 100 requests/minute) and a token exchange; see this app's README. Until then the
- * feed degrades gracefully and simply omits it.
+ * Reddit rate-limits its public .rss endpoints per IP, so whether it answers depends on
+ * which IP asks. It refuses this repo's build sandbox and answers Vercel's runtime fine —
+ * an earlier note here claimed all datacenter ranges were blocked, which was wrong and was
+ * really the sandbox's own egress policy. On by default; if a deployment does start getting
+ * 429s, staleOnError keeps serving the last good copy and the fix is a free Reddit OAuth
+ * app (script type, 100 requests/minute).
+ *
+ * Reddit escapes each post's full HTML into its Atom <content>, which pushes past the XML
+ * parser's default entity-expansion cap — see the processEntities config in fetchXml.ts.
  */
 export async function fetchReddit(): Promise<FeedItem[]> {
   const parsed = (await fetchXml(FEED, 120)) as { feed?: { entry?: AtomEntry | AtomEntry[] } };

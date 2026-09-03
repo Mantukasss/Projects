@@ -21,6 +21,22 @@ const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
   trimValues: true,
+  /**
+   * The parser caps XML entity expansion to blunt "billion laughs" bombs, where a tiny
+   * document expands into gigabytes and takes the server with it. The default cap of 1000
+   * total expansions is below what a legitimate feed uses: Reddit escapes the full HTML of
+   * every post into its Atom <content>, which runs past 1200 entities and made the whole
+   * source fail with "Entity expansion limit exceeded: 1250 > 1000".
+   *
+   * So this raises the ceiling rather than removing it — the protection still holds, at a
+   * level real feeds do not reach. maxExpandedLength stays bounded for the same reason:
+   * that, not the count, is what actually caps memory.
+   */
+  processEntities: {
+    enabled: true,
+    maxTotalExpansions: 100_000,
+    maxExpandedLength: 20_000_000,
+  },
 });
 
 export async function fetchXml(url: string, revalidate: number): Promise<unknown> {

@@ -7,8 +7,8 @@ import { SOURCE_NAME } from "@/lib/compose";
 import ItemCard from "./ItemCard";
 import QuoteCard from "./QuoteCard";
 
-const ALL_SOURCES: SourceId[] = ["hltv", "liquipedia", "reddit", "vlr"];
-const DEFAULT_SOURCES: SourceId[] = ["hltv", "liquipedia"];
+const ALL_SOURCES: SourceId[] = ["hltv", "liquipedia", "steam", "reddit", "vlr"];
+const DEFAULT_SOURCES: SourceId[] = ["hltv", "liquipedia", "steam", "reddit"];
 
 const POSTED_KEY = "newsdesk.posted";
 const HANDLE_KEY = "newsdesk.handle";
@@ -164,8 +164,7 @@ export default function Feed() {
           <p className="mt-3 text-xs text-text-low">
             VLR.gg is off by default: one game per account beats a mixed feed, because X
             ranks an account by the audience cluster that engages with it and two games
-            split that cluster in half. Reddit needs a free Reddit OAuth app to work from a
-            server — it rate-limits datacenter IPs.
+            split that cluster in half.
           </p>
         </section>
       )}
