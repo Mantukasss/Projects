@@ -56,7 +56,15 @@ and the app gains Google sign-in copied from `apps/hub`.
   the card button turns purple.
 
 ## Current state
-Working and verified against live data, not yet deployed. `npm run build` and `tsc --noEmit`
+**Live at https://mantas-newsdesk.vercel.app** and verified there: the deployed `/api/feed`
+returns 13 ranked items with no source errors, so both HLTV and Liquipedia answer Vercel's
+datacenter IPs — the open risk before deploying, since Liquipedia rate-limits by IP.
+
+Note that this production deployment is serving the **feature branch**, not `main`. Vercel
+promotes a project's first deployment to production regardless of branch; every later
+feature-branch push will be a preview, and `main` takes over once merged.
+
+Working and verified against live data. `npm run build` and `tsc --noEmit`
 both pass. A live run returned 13 ranked items with no source errors: three collapsed
 Liquipedia roster bursts (top scorer was Imperial Esports + AdeX + Levi edited inside 20
 minutes) and ten HLTV items with images and correct quote/roster/result classification.
