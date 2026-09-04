@@ -385,6 +385,14 @@ export default function ItemCard({
         </button>
       )}
 
+      {translated && (
+        <p className="mt-2 rounded-md border border-amber/40 px-3 py-2 text-xs text-amber">
+          Check every name against the source before posting. Nicknames are stylised and a
+          translator cannot derive them — this one knows the common ones and leaves the rest
+          in Cyrillic rather than guessing.
+        </p>
+      )}
+
       {translateError && (
         <p className="mt-2 text-xs text-coral">
           {translateError} — post the original or translate it yourself.

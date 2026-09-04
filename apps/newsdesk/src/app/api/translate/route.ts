@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { LlmError, ask, hasLlmKey } from "@/lib/llm";
+import { correctNames, glossaryLines } from "@/lib/glossary";
 
 export const runtime = "nodejs";
 
@@ -25,7 +26,12 @@ const SYSTEM = [
   "Rules:",
   "- Return ONLY the English text. No preamble, no notes, no quotes around it.",
   "- Keep it under 200 characters and keep it factual. Do not add detail that is not there.",
-  "- Keep player, team and tournament names in their standard Latin spelling.",
+  "- NEVER transliterate a name by how it sounds. Counter-Strike nicknames are stylised",
+  "  and cannot be derived from their Cyrillic spelling: Монеси is m0NESY, not 'Montesko';",
+  "  Ринкл is r1nkle, not 'Rinkl'; Соколов is the genitive of the TEAM Falcons, not a",
+  "  person called Sokolov. If a name is not in the list below and you do not know its",
+  "  exact Latin spelling, leave it in Cyrillic. A left-alone name can be fixed in seconds;",
+  "  an invented one goes out looking like the account does not follow the game.",
   "- If the original hedges (слух, сообщается, по слухам), keep the hedge in English.",
   "- Drop advertising, emoji spam and channel self-promotion.",
   "Use Counter-Strike vocabulary, not literal translations:",
@@ -38,6 +44,7 @@ const SYSTEM = [
   "- трансфер / переход -> transfer or move",
   "- отбор / квалификация -> qualifier",
   "- лан -> LAN; мажор -> Major",
+  ...glossaryLines(),
 ].join("\n");
 
 export async function POST(request: Request) {
@@ -57,7 +64,9 @@ export async function POST(request: Request) {
   if (!text.trim()) return NextResponse.json({ error: "empty text" }, { status: 400 });
 
   try {
-    return NextResponse.json({ text: await ask(SYSTEM, text) });
+    // The prompt is instruction; correctNames is enforcement. A model that has just
+    // written a fluent sentence will still drop an invented name into it.
+    return NextResponse.json({ text: correctNames(await ask(SYSTEM, text)) });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof LlmError ? error.message : "translation unavailable" },
