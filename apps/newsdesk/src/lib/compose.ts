@@ -154,12 +154,12 @@ export function compose(item: FeedItem): Draft {
   // costs the post a line of substance.
   const credited = handle ? `${body} via ${handle}` : body;
 
-  const { images, needsCard } = planMedia(item);
+  const { options, needsCard } = planMedia(item);
 
   return {
     body: credited,
     reply: `Source: ${SOURCE_NAME[item.source]}\n${item.url}`,
-    images,
+    images: options,
     needsCard,
   };
 }
@@ -169,34 +169,66 @@ function isForeignScript(text: string): boolean {
   return /[\u0400-\u04FF]/.test(text);
 }
 
+export interface MediaOption {
+  url: string;
+  label: string;
+  /** Foreign-language screenshots are offered but never pre-selected. */
+  caution?: string;
+}
+
 /**
- * Chooses what a post attaches, in order, best first.
+ * Offers everything this post could attach, best first, and picks nothing.
  *
- * Two rules drive it. Every post gets media, because a text-only post in this niche is
- * scrolled past whatever it says. And a post aimed at an English audience never carries a
- * picture of Russian text: the screenshot that came with a Telegram item is unreadable to
- * the people being posted to, so it is dropped and the generated English card takes its
- * place. The badge or the game mark then fills the second slot.
+ * An earlier version chose two and discarded the rest — including the source screenshot on
+ * every Russian item — which meant a run of posts all wearing the same game capsule. The
+ * judgement of which picture tells the story is not one a rule can make from a headline, so
+ * the options are laid out and the choice is left to the person posting.
+ *
+ * Order is by how specific each is to this story: the source's own photo, then the player,
+ * then their team, then the game. The game mark is last because it always resolves and so
+ * would otherwise crowd out everything better.
  */
-export function planMedia(item: FeedItem): { images: string[]; needsCard: boolean } {
+export function planMedia(item: FeedItem): {
+  options: MediaOption[];
+  needsCard: boolean;
+} {
   const foreign = isForeignScript(`${item.title} ${item.summary}`);
-  const images: string[] = [];
+  const wiki = item.source === "vlr" ? "&wiki=valorant" : "";
+  const options: MediaOption[] = [];
 
-  // The source photo, unless it is a screenshot of a language the audience cannot read.
-  if (item.image && !foreign) images.push(item.image);
+  if (item.image) {
+    options.push({
+      url: item.image,
+      label: "From the source",
+      // Kept, not dropped: it is often the best picture in the post, and whether the
+      // Russian text matters depends on the picture — which only a human can see.
+      caution: foreign ? "Contains Russian text" : undefined,
+    });
+  }
 
-  // The crest is deliberately NOT attached on its own. A bare transparent PNG posted as an
-  // image looks like a placeholder, because that is what it is — the crest belongs on the
-  // generated card, set against the brand background alongside the words. Composed, it
-  // reads as a graphic someone made; alone, it reads as a missing asset.
+  if (item.playerName) {
+    options.push({
+      url: `/api/photo?name=${encodeURIComponent(item.playerName)}${wiki}`,
+      label: item.playerName,
+    });
+  }
 
-  // The game's mark, as the reliable last resort — it always resolves.
-  images.push(item.source === "vlr" ? VALORANT_ARTWORK : CS2_ARTWORK);
+  if (item.teamPage) {
+    options.push({
+      url: `/api/logo?title=${encodeURIComponent(item.teamPage)}${wiki}`,
+      label: `${item.teamPage} crest`,
+    });
+  }
+
+  options.push({
+    url: item.source === "vlr" ? VALORANT_ARTWORK : CS2_ARTWORK,
+    label: item.source === "vlr" ? "VALORANT" : "Counter-Strike 2",
+  });
 
   return {
-    images: images.slice(0, 2),
-    // The card carries the words, so it is needed whenever no picture we have does: a
-    // foreign-script item whose only photo was just discarded, or no source photo at all.
+    options,
+    // The card carries the words, and is what a foreign-script post needs so the story
+    // reaches the reader in a language they read.
     needsCard: foreign || !item.image,
   };
 }

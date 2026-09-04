@@ -71,10 +71,16 @@ and the app gains Google sign-in copied from `apps/hub`.
   concept; posting that headline beside a generic game capsule is worse than not posting it.
   `reddit.ts` pulls the full-size image from the entry content, preferring i.redd.it and
   preview.redd.it links over the tiny media:thumbnail.
-- **A post never carries a picture of Russian text.** The audience cannot read it, so
-  `planMedia` drops a foreign-script item's screenshot and the generated English card takes
-  its place; `QuoteCard` refuses to bake one in for the same reason. Do not "fix" this by
-  attaching the original.
+- **`planMedia` offers, it does not choose.** An earlier version picked two images and
+  discarded the rest — including the source screenshot on every Russian item — which left a
+  run of posts all wearing the same game capsule. Which picture tells the story cannot be
+  decided from a headline, so every option is shown, ordered by how specific it is to this
+  story, and the person posting picks. Foreign-language screenshots are labelled, not
+  removed. `QuoteCard` still refuses to bake one into the generated English card.
+- **Player nicknames are guessed, and that is fine.** `players.ts` reads the two shapes CS
+  headlines actually use — `nick: "quote"` and `nick <verb>` — rather than trying to hold a
+  list of thousands of players whose churn is itself the news. A wrong guess costs nothing:
+  `/api/photo` 404s and the post falls back to the crest.
 - **The card is built from the translated item, not the row's original.** `onMakeCard`
   hands back the effective source, or an English card would come out carrying Russian.
 - **Groq's model is discovered at runtime, never hardcoded.** A hardcoded, plausible-looking
