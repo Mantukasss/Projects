@@ -28,6 +28,8 @@ const HANDLE = "@your_handle";
  * which is the whole currency of a news account, and it makes being wrong survivable: a
  * rumor that does not pan out costs nothing if it was posted as a rumor.
  */
+/** The bare marker, for a post whose hook is already doing the work of a label. */
+const MARK = "\u203C\uFE0F";
 const CONFIRMED = "JUST IN:";
 const UNCONFIRMED = "RUMOR:";
 
@@ -159,7 +161,7 @@ export function compose(item: FeedItem): Draft {
 
   return {
     body: credited,
-    reply: `Source: ${SOURCE_NAME[item.source]}\n${item.url}`,
+    reply: sourceReply(item),
     images: options,
     needsCard,
   };
@@ -196,7 +198,15 @@ export interface MediaOption {
  * then their team, then the game. The game mark is last because it always resolves and so
  * would otherwise crowd out everything better.
  */
-export function planMedia(item: FeedItem): {
+export function planMedia(
+  item: FeedItem,
+  /**
+   * Everyone the write-up found named in the text. A quote about donk and s1mple wants
+   * photographs of donk and s1mple — the two faces in the story, which is the pairing the
+   * accounts worth copying use — not the speaker beside a team crest.
+   */
+  people: string[] = [],
+): {
   options: MediaOption[];
   needsCard: boolean;
 } {
@@ -229,10 +239,13 @@ export function planMedia(item: FeedItem): {
     });
   }
 
-  if (item.playerName) {
+  // Named people first, in the order the write-up found them: the speaker leads, then
+  // whoever the quote is about. Falls back to the nickname read off the headline.
+  const named = people.length > 0 ? people : item.playerName ? [item.playerName] : [];
+  for (const person of named.slice(0, 4)) {
     options.push({
-      url: `/api/photo?name=${encodeURIComponent(item.playerName)}${wiki}`,
-      label: item.playerName,
+      url: `/api/photo?name=${encodeURIComponent(person)}${wiki}`,
+      label: person,
     });
   }
 
@@ -264,29 +277,40 @@ export function planMedia(item: FeedItem): {
  * announced" becomes a post that actually names them.
  */
 export interface Writeup {
-  lead: string;
+  hook: string;
+  speaker: string;
   quote: string;
   context: string;
+  /** Everyone named in the text, speaker first — each is a photo the post can attach. */
+  people: string[];
 }
 
 /**
- * The post in the shape the incumbents use: a lead that says what the quote means, the
- * quote itself, then a line of supporting fact.
+ * The post: the sharpest line the speaker said, attributed, then the reasoning, then a
+ * supporting fact.
  *
- * Curly quotation marks on purpose — every account in this scene uses them, and straight
- * quotes are one of the small tells that a post came out of a script.
+ * The hook carries the marker and the attribution on one line, because that line has to
+ * work on its own — it is all most people will read. Curly quotation marks throughout:
+ * every account in this scene uses them, and straight quotes are one of the small tells
+ * that a post came out of a script.
  */
 export function composeFromWriteup(item: FeedItem, writeup: Writeup): Draft {
   const base = compose(item);
-  const parts = [writeup.lead];
-  if (writeup.quote) parts.push(`\u201C${writeup.quote}\u201D`);
+  const parts: string[] = [];
+
+  const attribution = writeup.speaker ? ` — ${writeup.speaker}` : "";
+  parts.push(`${MARK} \u201C${writeup.hook}\u201D${attribution}`);
+
+  // The fuller passage only earns its place when it says more than the hook already did.
+  if (writeup.quote && writeup.quote.trim() !== writeup.hook.trim()) {
+    parts.push(`\u201C${writeup.quote}\u201D`);
+  }
   if (writeup.context) parts.push(writeup.context);
-  parts.push(KIND_EMOJI[item.kind]);
 
   const handle = SOURCE_HANDLE[item.source];
   return {
     ...base,
-    // The credit gets its own line here, the way the accounts worth copying place it.
+    // The credit gets its own line, the way the accounts worth copying place it.
     body: parts.join("\n\n") + (handle ? `\n\nSource: ${handle}` : ""),
   };
 }
@@ -328,6 +352,26 @@ export function composeWithDetail(
   }
 
   return base;
+}
+
+/**
+ * The first reply, crediting where the story actually came from.
+ *
+ * Aggregators are not origins. A Telegram channel reposting an interview is where we read
+ * it, not where it happened, and crediting only the channel takes credit the interviewer
+ * earned — which is both unfair and the thing that gets an account called a content thief.
+ * When the source text carries a link out to the original — a YouTube interview, an
+ * article — that link leads and the channel follows as "found via".
+ */
+function sourceReply(item: FeedItem): string {
+  const origin = `${item.title} ${item.summary}`.match(
+    /https?:\/\/(?!t\.me\b)[^\s"'<>)]+/i,
+  )?.[0];
+
+  if (origin) {
+    return `Source: ${origin}\nFound via ${SOURCE_NAME[item.source]}: ${item.url}`;
+  }
+  return `Source: ${SOURCE_NAME[item.source]}\n${item.url}`;
 }
 
 /** X counts a post at 280 characters for a free account; Premium raises the ceiling. */

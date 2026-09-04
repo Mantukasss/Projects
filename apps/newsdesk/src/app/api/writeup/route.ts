@@ -6,18 +6,24 @@ export const runtime = "nodejs";
 /**
  * Writes the post the way the accounts worth copying write it.
  *
- * Their shape is three parts, and it is not what a headline gives you:
+ * The shape that works in this scene leads with the sharpest thing the person actually
+ * said, attributes it, and only then gives the reasoning:
  *
- *   zont1x says Spirit still haven't done enough to call themselves the best team:
+ *   "If I were 10 years younger, I would have beaten donk and s1mple" — TaZ
  *
- *   "We don't have a 20 map win streak to talk about this. We lost to MOUZ..."
+ *   "It's impossible to compare, because I look at how they play and well, if I were
+ *   10 or 15 years younger, I would easily beat them..."
  *
- *   He added that they still need significant results before making that claim.
+ *   TaZ won three straight Majors with Virtus.pro.
  *
- * The lead is an editorial summary — it tells you what the quote MEANS before you read it,
- * which is what makes the quote land. A headline cannot supply that; it is the same
- * sentence compressed. So this reads the article's own paragraphs and writes the summary
- * from them, which is what a person doing this job actually does.
+ * The hook is the speaker's own words, not a summary of them. A summary asks the reader to
+ * take the account's word for why this matters; a bold claim in quotation marks makes the
+ * case by itself, and it is the reason someone stops scrolling. Picking WHICH line is the
+ * editorial judgement, and it needs the whole article — which is why HLTV pieces are
+ * fetched before this runs.
+ *
+ * It also returns everyone named, because a quote about donk and s1mple wants photographs
+ * of donk and s1mple, not a team crest.
  *
  * The hard constraint is that nothing may be invented. A news account's entire value is
  * that its posts are true, and a model asked to write engagingly will reach for detail it
@@ -28,25 +34,27 @@ const SYSTEM = [
   "You write posts for a Counter-Strike news account on X. Reply with JSON only.",
   "",
   "Shape:",
-  '{"lead": "...", "quote": "...", "context": "..."}',
+  '{"hook": "...", "speaker": "...", "quote": "...", "context": "...", "people": ["..."]}',
   "",
-  "lead — one line, third person, naming who said it and what it MEANS. Ends with a colon.",
-  "  It must PARAPHRASE, never echo the quote's wording, and it should name the team or",
-  "  subject the quote is about even when the speaker only implies it.",
-  '  GOOD: zont1x says Spirit still haven\'t done enough to call themselves the best team in the world:',
-  '  BAD:  zont1x says we don\'t yet have significant results to say that we are the best:',
-  "  The bad one just repeats the quote in different punctuation, so the reader learns",
-  "  nothing before reading it and the post reads as though it was assembled by a script.",
-  "quote — the speaker's words, COPIED EXACTLY from the source. Never reword or shorten them.",
-  "  If the source carries no direct quote, return an empty string.",
-  "context — one short sentence of supporting fact from the source. Empty string if there is none.",
+  "hook — the single most arresting line the speaker actually said, quoted word for word,",
+  "  short enough to read at a glance. This is the line that makes someone stop scrolling,",
+  "  so pick the boldest claim, not the opening sentence. Omit the surrounding quote marks.",
+  '  GOOD: If I were 10 years younger, I would have beaten donk and s1mple',
+  '  BAD:  It is impossible to compare because I look at how they play',
+  "  The bad one is throat-clearing; nobody stops for it.",
+  "speaker — who said it, as the scene writes their name.",
+  "quote — the fuller passage giving the hook its reasoning, copied EXACTLY from the source.",
+  "  It may run to a few sentences. Empty string if the source carries no direct quote.",
+  "context — one short sentence of supporting fact from the source. Empty string if none.",
+  "people — every player or personality NAMED in the text, speaker first, as nicknames only.",
+  '  For the example above: ["TaZ", "donk", "s1mple"]',
   "",
   "Rules:",
   "- Invent NOTHING. Every name, number, team and claim must appear in the source text.",
+  "- Never reword anything inside hook or quote. They are the speaker's words, not yours.",
   "- If you are unsure of a detail, leave it out rather than guessing.",
   "- Plain English, no hype, no emoji, no hashtags, no links.",
   "- Use Counter-Strike vocabulary: AWPer not sniper, roster not squad list, IGL, LAN, Major.",
-  "- Keep lead under 140 characters and context under 140.",
 ].join("\n");
 
 export async function POST(request: Request) {
@@ -77,14 +85,23 @@ export async function POST(request: Request) {
 
   try {
     const raw = await ask(SYSTEM, source);
-    const parsed = parseJson<{ lead?: string; quote?: string; context?: string }>(raw);
-    if (!parsed?.lead) {
+    const parsed = parseJson<{
+      hook?: string;
+      speaker?: string;
+      quote?: string;
+      context?: string;
+      people?: string[];
+    }>(raw);
+    if (!parsed?.hook) {
       return NextResponse.json({ error: "model returned no usable write-up" }, { status: 502 });
     }
     return NextResponse.json({
-      lead: parsed.lead.trim(),
+      hook: parsed.hook.trim(),
+      speaker: (parsed.speaker ?? "").trim(),
       quote: (parsed.quote ?? "").trim(),
       context: (parsed.context ?? "").trim(),
+      // Nicknames only, deduped — each becomes a photo the post can attach.
+      people: [...new Set((parsed.people ?? []).map((p) => String(p).trim()).filter(Boolean))].slice(0, 4),
     });
   } catch (error) {
     return NextResponse.json(
