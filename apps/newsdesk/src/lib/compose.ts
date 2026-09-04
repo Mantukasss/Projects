@@ -1,4 +1,5 @@
 import type { Draft, FeedItem } from "./types";
+import { brandOf } from "./teams";
 
 /**
  * Turns a feed item into a ready-to-post draft.
@@ -174,6 +175,11 @@ export interface MediaOption {
   label: string;
   /** Foreign-language screenshots are offered but never pre-selected. */
   caution?: string;
+  /**
+   * A team crest, which is composed onto the org's brand colour rather than shown raw.
+   * Carries the colour so the tile does not have to look it up again.
+   */
+  crest?: { brand: string | null };
 }
 
 /**
@@ -225,7 +231,8 @@ export function planMedia(item: FeedItem): {
   if (item.teamPage) {
     options.push({
       url: `/api/logo?title=${encodeURIComponent(item.teamPage)}${wiki}`,
-      label: `${item.teamPage} crest`,
+      label: item.teamPage,
+      crest: { brand: brandOf(item.teamPage) },
     });
   }
 

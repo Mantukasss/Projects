@@ -63,6 +63,15 @@ and the app gains Google sign-in copied from `apps/hub`.
   page's whole image list, which includes every opponent from its match tables, so MOUZ
   resolved to "4klogo" and Imperial Esports to "Red Canids". Only section 0 gives the team's
   own badge. `prop=pageimages` returns nothing — the extension is not populated here.
+- **Reddit's preview URLs are signed thumbnails, not images.** The ones in this feed are
+  140x78 with the dimensions baked into an `s=` signature, so the width cannot be raised.
+  `fullSize()` swaps the same image id onto i.redd.it, which is the untouched upload —
+  verified: the preview 403s, i.redd.it returns 1920x1080. `external-preview.redd.it` is a
+  thumbnail of a third-party page and is left alone.
+- **A crest is composed, never shown raw.** `CrestTile` draws it large on the org's brand
+  colour from `teams.ts`, filling a square. That square, repeated post after post, is what
+  makes a feed read as a publication; the same logo transparent on dark reads as an asset
+  that failed to load.
 - **Never attach a bare team crest as a post image.** They are transparent PNGs drawn for a
   white wiki page — some dark, some wordmarks, some thin line art — and posted raw they read
   as a missing asset. `QuoteCard` sets them on a consistent rounded plate instead, which is

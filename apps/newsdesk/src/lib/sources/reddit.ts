@@ -21,20 +21,35 @@ interface AtomEntry {
  * Reddit exposes the image twice over: a media:thumbnail element, and full-size links
  * inside the HTML content. Preview URLs beat the thumbnail, which is tiny.
  */
+/**
+ * Trades Reddit's signed thumbnail for the original.
+ *
+ * A preview.redd.it link is a resized crop with its dimensions baked into a signature —
+ * the ones in this feed are 140x78, which is unusable as a post image, and the signature
+ * means the width cannot simply be raised. The same image id on i.redd.it is the untouched
+ * upload: verified, the preview 403s while i.redd.it returns the original at 1920x1080.
+ *
+ * external-preview.redd.it is left alone. It is a thumbnail of a linked third-party page
+ * rather than an upload, so there is no original of ours to point at.
+ */
+function fullSize(url: string): string {
+  const preview = url.match(/^https:\/\/preview\.redd\.it\/([^?]+)/i);
+  return preview ? `https://i.redd.it/${preview[1]}` : url;
+}
+
 function imageFrom(entry: AtomEntry, contentHtml: string): string | undefined {
   /**
    * The query string is part of the URL, not decoration. A preview.redd.it link carries a
    * signature in `s=`, and an earlier pattern here stopped at the first `&` — so every
-   * Reddit image came back truncated and 403'd, which showed up as a dead "From the source"
-   * tile on every Reddit post.
+   * Reddit image came back truncated and 403'd.
    */
   const direct = contentHtml.match(
     /https:\/\/(?:i\.redd\.it|preview\.redd\.it|i\.imgur\.com)\/[^\s"'<>]+/i,
   )?.[0];
-  if (direct) return decodeEntities(direct);
+  if (direct) return fullSize(decodeEntities(direct));
 
   const embedded = contentHtml.match(/<img[^>]+src="([^"]+)"/i)?.[1];
-  if (embedded) return decodeEntities(embedded);
+  if (embedded) return fullSize(decodeEntities(embedded));
 
   return entry["media:thumbnail"]?.["@_url"];
 }

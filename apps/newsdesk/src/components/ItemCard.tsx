@@ -11,6 +11,7 @@ import {
 } from "@tabler/icons-react";
 import type { FeedItem } from "@/lib/types";
 import { SOURCE_NAME, compose, composeWithDetail, postLength } from "@/lib/compose";
+import CrestTile from "./CrestTile";
 
 const SOURCE_TONE: Record<FeedItem["source"], string> = {
   hltv: "text-amber",
@@ -214,7 +215,20 @@ export default function ItemCard({
             )}
           </p>
           <div className="grid grid-cols-2 gap-2">
-            {draft.images.map((option) => (
+            {draft.images.map((option) =>
+              option.crest && !deadImages.includes(option.url) ? (
+                <CrestTile
+                  key={option.url}
+                  logoUrl={option.url}
+                  brand={option.crest.brand}
+                  label={option.label}
+                  onFailed={() =>
+                    setDeadImages((current) =>
+                      current.includes(option.url) ? current : [...current, option.url],
+                    )
+                  }
+                />
+              ) : (
               <a
                 key={option.url}
                 href={option.url}
@@ -251,7 +265,8 @@ export default function ItemCard({
                   )}
                 </span>
               </a>
-            ))}
+              ),
+            )}
           </div>
         </div>
       )}
@@ -259,9 +274,11 @@ export default function ItemCard({
       <p className="mt-2 text-xs text-text-low">
         {attachmentCount >= 2
           ? `${attachmentCount} images ready — attach two.`
-          : draft.needsCard
-            ? "This post has no picture of its own. Build the image — it draws the headline and the team crest onto a branded graphic."
-            : "One image. Build a second so the post reads as an event, not a caption."}
+          : needsTranslation
+            ? "The source picture carries Russian text. Build the English image, or pick another below."
+            : draft.needsCard
+              ? "No picture of its own. Build the image — it draws the quote over the player's photo."
+              : "One image. Build a second so the post reads as an event, not a caption."}
       </p>
 
       {extraImages.length > 0 && (
