@@ -82,6 +82,11 @@ const TEAMS: Team[] = [
  * the giveaway words — "The MongolZ", "Astralis", "Fnatic" — and silently dropped their
  * badges.
  */
+/** The org's brand colour, or null where it is unknown or effectively black. */
+export function brandOf(page: string): string | null {
+  return TEAMS.find((team) => team.page === page)?.brand ?? null;
+}
+
 export function isKnownTeam(page: string): boolean {
   return TEAMS.some((team) => team.page === page);
 }
