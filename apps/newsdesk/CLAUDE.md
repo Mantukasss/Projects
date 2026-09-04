@@ -63,6 +63,18 @@ and the app gains Google sign-in copied from `apps/hub`.
   page's whole image list, which includes every opponent from its match tables, so MOUZ
   resolved to "4klogo" and Imperial Esports to "Red Canids". Only section 0 gives the team's
   own badge. `prop=pageimages` returns nothing — the extension is not populated here.
+- **A post never carries a picture of Russian text.** The audience cannot read it, so
+  `planMedia` drops a foreign-script item's screenshot and the generated English card takes
+  its place; `QuoteCard` refuses to bake one in for the same reason. Do not "fix" this by
+  attaching the original.
+- **The card is built from the translated item, not the row's original.** `onMakeCard`
+  hands back the effective source, or an English card would come out carrying Russian.
+- **Groq's model is discovered at runtime, never hardcoded.** A hardcoded, plausible-looking
+  name was not in Groq's lineup and every call failed. `/api/translate` asks Groq what it
+  serves and prefers the smallest capable chat model.
+- **The translator is given CS vocabulary explicitly.** A literal "снайпер" becomes "sniper",
+  which no CS account would write — it is "AWPer" — and one word like that gives the post
+  away as machine-made.
 - **An env-var change alone cannot be deployed in this repo.** Redeploying the same commit
   makes `scripts/vercel-ignore.sh` compare it against itself, find no diff, exit 0, and
   Vercel CANCELS the build — the new variable never reaches the runtime. Push a real commit
@@ -102,6 +114,11 @@ and the app gains Google sign-in copied from `apps/hub`.
   shortcuts.
 - **Team names come from HLTV's anchor text, not the URL slug.** Rebuilding from the slug
   gave "Mouz", "9Z" and "THE Mongolz" instead of "MOUZ", "9z" and "The MongolZ".
+
+### Ordering
+Newest first by default; `?sort=score` returns the ranked order and the UI toggles it.
+Score decides what is worth posting, time decides what is new, and ranking by score buries
+the thing that just landed behind something better from three hours ago.
 
 ### Media
 Every post carries an image; the card blocks copying until one exists. An item that names a

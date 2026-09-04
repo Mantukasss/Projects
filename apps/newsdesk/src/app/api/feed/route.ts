@@ -71,10 +71,23 @@ export async function GET(request: Request) {
     return { ...flagged, ...(scooped ? { scooped } : {}), ...(teamPage ? { teamPage } : {}) };
   });
 
-  const ranked = dedupe(annotated.map(scoreItem)).sort((a, b) => b.score - a.score);
+  const scored = dedupe(annotated.map(scoreItem));
+
+  /**
+   * Newest first by default.
+   *
+   * Score decides what is WORTH posting; time decides what is NEW, and on a news desk you
+   * work down from the top of the hour. Ranking by score also hides the thing that just
+   * landed behind something better from three hours ago, which is the opposite of the job.
+   * The score stays on every card, and `sort=score` still returns the ranked order.
+   */
+  const byScore = new URL(request.url).searchParams.get("sort") === "score";
+  const ordered = byScore
+    ? scored.sort((a, b) => b.score - a.score)
+    : scored.sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
 
   return NextResponse.json(
-    { items: ranked.slice(0, 60), errors, fetchedAt: new Date().toISOString() },
+    { items: ordered.slice(0, 60), errors, fetchedAt: new Date().toISOString() },
     { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" } },
   );
 }
