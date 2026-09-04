@@ -16,6 +16,7 @@ import {
   compose,
   composeFromWriteup,
   composeWithDetail,
+  planMedia,
   postLength,
   type Writeup,
 } from "@/lib/compose";
@@ -140,11 +141,22 @@ export default function ItemCard({
   // the bare headline. A translated post replaces the headline entirely — the Russian is
   // never what goes out.
   const source = translated ? { ...item, title: translated, summary: "" } : item;
-  const draft = writeup
+  const written = writeup
     ? composeFromWriteup(source, writeup)
     : detail
       ? composeWithDetail(source, detail)
       : compose(source);
+
+  /**
+   * Words from the translated item, pictures from the original.
+   *
+   * Translating a post does not translate the text burned into its screenshot, but planning
+   * media from the translated item made it look as though it had: the Russian caution
+   * disappeared and the English card stopped being offered, on a post whose picture was
+   * still entirely in Russian.
+   */
+  const media = planMedia(item);
+  const draft = { ...written, images: media.options, needsCard: media.needsCard };
 
   // A post whose headline promises a list or a number it does not contain must not be
   // copyable. The block is easier to fix than to bypass — one tap loads the detail.
@@ -289,7 +301,18 @@ export default function ItemCard({
                     refuses a server, so routing these through /api/image blanked every
                     player photo — the proxy exists for the canvas, not for display. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                {deadImages.includes(option.url) ? (
+                {option.video ? (
+                  // Muted, looping and inline so a clip previews without taking over the
+                  // feed; the link still opens the file itself to save.
+                  <video
+                    src={option.url}
+                    className="h-28 w-full bg-surface-elevated object-contain"
+                    muted
+                    loop
+                    playsInline
+                    autoPlay
+                  />
+                ) : deadImages.includes(option.url) ? (
                   <span className="flex h-28 w-full items-center justify-center bg-surface-elevated px-2 text-center text-[11px] text-text-low">
                     Did not load — tap Retry
                   </span>
@@ -308,6 +331,7 @@ export default function ItemCard({
                   />
                 )}
                 <span className="block px-2 py-1 text-[11px] text-text-muted">
+                  {option.video && <span className="mr-1 text-teal">▶</span>}
                   {option.label}
                   {option.caution && (
                     <span className="block text-amber">{option.caution}</span>
