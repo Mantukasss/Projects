@@ -40,6 +40,8 @@ export interface FeedItem {
   playerName?: string;
   /** Counter-Strike item named in the headline ("AK-47 | Redline"). See csItems.ts. */
   itemName?: string;
+  /** A direct video file, when the source attached one. See telegram.ts. */
+  videoUrl?: string;
   /** Higher = post this sooner. See score.ts. */
   score: number;
   /** Why it scored what it scored — shown in the UI so the ranking is inspectable. */

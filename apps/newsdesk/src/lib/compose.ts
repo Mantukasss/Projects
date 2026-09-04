@@ -173,6 +173,8 @@ function isForeignScript(text: string): boolean {
 export interface MediaOption {
   url: string;
   label: string;
+  /** A clip rather than a still — it downloads and uploads as video, not as an image. */
+  video?: boolean;
   /** Foreign-language screenshots are offered but never pre-selected. */
   caution?: string;
   /**
@@ -201,6 +203,12 @@ export function planMedia(item: FeedItem): {
   const foreign = isForeignScript(`${item.title} ${item.summary}`);
   const wiki = item.source === "vlr" ? "&wiki=valorant" : "";
   const options: MediaOption[] = [];
+
+  // The clip first. When the news IS the footage — "what are they doing at the bootcamp" —
+  // every still in the list is a description of the thing rather than the thing.
+  if (item.videoUrl) {
+    options.push({ url: item.videoUrl, label: "Video from the source", video: true });
+  }
 
   if (item.image) {
     options.push({

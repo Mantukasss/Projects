@@ -80,6 +80,16 @@ and the app gains Google sign-in copied from `apps/hub`.
   concept; posting that headline beside a generic game capsule is worse than not posting it.
   `reddit.ts` pulls the full-size image from the entry content, preferring i.redd.it and
   preview.redd.it links over the tiny media:thumbnail.
+- **Plan media from the ORIGINAL item, never the translated one.** Translating a post does
+  not translate the text burned into its screenshot. Planning from the translated item made
+  the Russian caution vanish and stopped offering the English card, on a post whose picture
+  was still entirely in Russian. `ItemCard` composes words from the translated item and
+  pictures from the original, on purpose.
+- **Telegram posts carry clips, and the clip is often the whole post.** A video attachment
+  puts its still under `tgme_widget_message_video_thumb` rather than the photo class, so
+  reading only the photo class returned nothing at all for those; and the `<video src>` is a
+  direct mp4 that can be attached as footage. "What are BC.Game players doing at the
+  bootcamp" had neither until both were read.
 - **`planMedia` offers, it does not choose.** An earlier version picked two images and
   discarded the rest — including the source screenshot on every Russian item — which left a
   run of posts all wearing the same game capsule. Which picture tells the story cannot be

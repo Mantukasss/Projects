@@ -81,9 +81,32 @@ function extractText(block: string): string {
     .trim();
 }
 
+/**
+ * The still image: a photo attachment, or a video's thumbnail.
+ *
+ * Telegram serves both from the same CDN and marks them with different classes, so a post
+ * carrying a clip used to come through with no picture at all — which is how "What are
+ * BC.Game players doing at the bootcamp?" ended up with nothing but a game capsule beside
+ * it, when the clip was the entire post.
+ */
 function extractPhoto(block: string): string | undefined {
-  const match = block.match(/tgme_widget_message_photo_wrap[^"]*"[^>]*style="[^"]*background-image:url\('([^']+)'\)/);
-  return match?.[1];
+  const photo = block.match(
+    /tgme_widget_message_photo_wrap[^"]*"[^>]*style="[^"]*background-image:url\('([^']+)'\)/,
+  );
+  if (photo) return photo[1];
+
+  const videoThumb = block.match(
+    /tgme_widget_message_video_thumb"[^>]*style="[^"]*background-image:url\('([^']+)'\)/,
+  );
+  return videoThumb?.[1];
+}
+
+/**
+ * The clip itself. Telegram exposes a direct mp4 on the preview page, so a post whose news
+ * IS the footage can be attached as footage rather than described.
+ */
+function extractVideo(block: string): string | undefined {
+  return block.match(/<video[^>]+src="([^"]+\.mp4[^"]*)"/)?.[1];
 }
 
 function extractTime(block: string): string {
@@ -117,6 +140,7 @@ async function fetchChannel(channel: ChannelConfig): Promise<FeedItem[]> {
       url: `https://t.me/${postId}`,
       publishedAt: extractTime(block),
       image: extractPhoto(block),
+      videoUrl: extractVideo(block),
       score: 0,
       reasons: [`${channel.label}${channel.language === "ru" ? " · Russian, needs translating" : ""}`],
     });
