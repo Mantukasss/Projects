@@ -146,6 +146,18 @@ and the app gains Google sign-in copied from `apps/hub`.
 - **Team names come from HLTV's anchor text, not the URL slug.** Rebuilding from the slug
   gave "Mouz", "9Z" and "THE Mongolz" instead of "MOUZ", "9z" and "The MongolZ".
 
+### Writing
+`/api/writeup` turns a headline into the three-part post the incumbents use: a lead saying
+what the quote MEANS, the quote verbatim, then a supporting fact. HLTV articles are fetched
+first so the lead is written from the story rather than from its own headline — that summary
+cannot be derived from the quote alone, and it is the whole difference between the formats.
+The quote is passed through untouched, never regenerated, so the one part that must be exact
+cannot drift. Nothing may be invented; the prompt says so and the source text is all it gets.
+
+All model calls go through `lib/llm.ts`. Everything painful was learned there: the model is
+discovered rather than hardcoded, the token budget is generous because these are reasoning
+models and the budget covers the thinking, and every failure records why.
+
 ### Ordering
 Newest first by default; `?sort=score` returns the ranked order and the UI toggles it.
 Score decides what is worth posting, time decides what is new, and ranking by score buries

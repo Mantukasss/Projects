@@ -255,6 +255,34 @@ export function planMedia(item: FeedItem): {
  * Used after /api/detail resolves an article's team list, so "Closed Qualifier teams
  * announced" becomes a post that actually names them.
  */
+export interface Writeup {
+  lead: string;
+  quote: string;
+  context: string;
+}
+
+/**
+ * The post in the shape the incumbents use: a lead that says what the quote means, the
+ * quote itself, then a line of supporting fact.
+ *
+ * Curly quotation marks on purpose — every account in this scene uses them, and straight
+ * quotes are one of the small tells that a post came out of a script.
+ */
+export function composeFromWriteup(item: FeedItem, writeup: Writeup): Draft {
+  const base = compose(item);
+  const parts = [writeup.lead];
+  if (writeup.quote) parts.push(`\u201C${writeup.quote}\u201D`);
+  if (writeup.context) parts.push(writeup.context);
+  parts.push(KIND_EMOJI[item.kind]);
+
+  const handle = SOURCE_HANDLE[item.source];
+  return {
+    ...base,
+    // The credit gets its own line here, the way the accounts worth copying place it.
+    body: parts.join("\n\n") + (handle ? `\n\nSource: ${handle}` : ""),
+  };
+}
+
 export function composeWithDetail(
   item: FeedItem,
   detail: { teams?: string[]; keyFact?: string | null },
