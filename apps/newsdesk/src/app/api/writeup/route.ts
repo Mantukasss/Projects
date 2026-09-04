@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { LlmError, ask, hasLlmKey, parseJson } from "@/lib/llm";
+import { correctNames, glossaryLines } from "@/lib/glossary";
 
 export const runtime = "nodejs";
 
@@ -55,6 +56,9 @@ const SYSTEM = [
   "- If you are unsure of a detail, leave it out rather than guessing.",
   "- Plain English, no hype, no emoji, no hashtags, no links.",
   "- Use Counter-Strike vocabulary: AWPer not sniper, roster not squad list, IGL, LAN, Major.",
+  "- NEVER transliterate a name by how it sounds, and never guess a Latin spelling. If you",
+  "  do not know one exactly, leave the name as the source wrote it.",
+  ...glossaryLines(),
 ].join("\n");
 
 export async function POST(request: Request) {
@@ -96,12 +100,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "model returned no usable write-up" }, { status: 502 });
     }
     return NextResponse.json({
-      hook: parsed.hook.trim(),
-      speaker: (parsed.speaker ?? "").trim(),
-      quote: (parsed.quote ?? "").trim(),
-      context: (parsed.context ?? "").trim(),
+      hook: correctNames(parsed.hook.trim()),
+      speaker: correctNames((parsed.speaker ?? "").trim()),
+      quote: correctNames((parsed.quote ?? "").trim()),
+      context: correctNames((parsed.context ?? "").trim()),
       // Nicknames only, deduped — each becomes a photo the post can attach.
-      people: [...new Set((parsed.people ?? []).map((p) => String(p).trim()).filter(Boolean))].slice(0, 4),
+      people: [
+        ...new Set(
+          (parsed.people ?? []).map((p) => correctNames(String(p).trim())).filter(Boolean),
+        ),
+      ].slice(0, 4),
     });
   } catch (error) {
     return NextResponse.json(
