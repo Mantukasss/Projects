@@ -295,9 +295,14 @@ export function planMedia(
  * announced" becomes a post that actually names them.
  */
 export interface Writeup {
+  /** Which shape the source suited: someone's words, or something that happened. */
+  kind: "quote" | "story";
   hook: string;
   speaker: string;
   quote: string;
+  opening: string;
+  reason: string;
+  consequence: string;
   context: string;
   /** Everyone named in the text, speaker first — each is a photo the post can attach. */
   people: string[];
@@ -316,13 +321,26 @@ export function composeFromWriteup(item: FeedItem, writeup: Writeup): Draft {
   const base = compose(item);
   const parts: string[] = [];
 
-  const attribution = writeup.speaker ? ` — ${writeup.speaker}` : "";
-  parts.push(`${MARK} \u201C${writeup.hook}\u201D${attribution}`);
+  if (writeup.kind === "story") {
+    /**
+     * A retelling, in our own words. The opening sets an expectation and breaks it, the
+     * reason is set off on its own line so the eye lands on it, and the consequence says
+     * why it still matters. Facts are nobody's property; the sentences carrying them are
+     * ours, which is the whole difference between reporting a story and reposting one.
+     */
+    parts.push(`${writeup.opening} ${MARK}`);
+    if (writeup.reason) parts.push(`> ${writeup.reason}`);
+    if (writeup.consequence) parts.push(writeup.consequence);
+  } else {
+    const attribution = writeup.speaker ? ` — ${writeup.speaker}` : "";
+    parts.push(`${MARK} \u201C${writeup.hook}\u201D${attribution}`);
 
-  // The fuller passage only earns its place when it says more than the hook already did.
-  if (writeup.quote && writeup.quote.trim() !== writeup.hook.trim()) {
-    parts.push(`\u201C${writeup.quote}\u201D`);
+    // The fuller passage only earns its place when it says more than the hook already did.
+    if (writeup.quote && writeup.quote.trim() !== writeup.hook.trim()) {
+      parts.push(`\u201C${writeup.quote}\u201D`);
+    }
   }
+
   if (writeup.context) parts.push(writeup.context);
 
   const handle = SOURCE_HANDLE[item.source];

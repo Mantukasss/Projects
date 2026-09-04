@@ -34,26 +34,38 @@ export const runtime = "nodejs";
 const SYSTEM = [
   "You write posts for a Counter-Strike news account on X. Reply with JSON only.",
   "",
-  "Shape:",
-  '{"hook": "...", "speaker": "...", "quote": "...", "context": "...", "people": ["..."]}',
+  "First decide which kind of post this is.",
   "",
-  "hook — the single most arresting line the speaker actually said, quoted word for word,",
-  "  short enough to read at a glance. This is the line that makes someone stop scrolling,",
-  "  so pick the boldest claim, not the opening sentence. Omit the surrounding quote marks.",
-  '  GOOD: If I were 10 years younger, I would have beaten donk and s1mple',
-  '  BAD:  It is impossible to compare because I look at how they play',
-  "  The bad one is throat-clearing; nobody stops for it.",
-  "speaker — who said it, as the scene writes their name.",
-  "quote — the fuller passage giving the hook its reasoning, copied EXACTLY from the source.",
-  "  It may run to a few sentences. Empty string if the source carries no direct quote.",
-  "context — one short sentence of supporting fact from the source. Empty string if none.",
-  "people — every player or personality NAMED in the text, speaker first, as nicknames only.",
-  '  For the example above: ["TaZ", "donk", "s1mple"]',
+  'QUOTE — the source carries someone\'s words worth leading with. Shape:',
+  '{"kind":"quote","hook":"...","speaker":"...","quote":"...","context":"...","people":["..."]}',
+  "  hook — the single most arresting line the speaker actually said, word for word, short",
+  "    enough to read at a glance. Pick the boldest claim, never the opening sentence.",
+  '    GOOD: If I were 10 years younger, I would have beaten donk and s1mple',
+  '    BAD:  It is impossible to compare because I look at how they play',
+  "  speaker — who said it. quote — the fuller passage, copied EXACTLY. May be empty.",
+  "",
+  "STORY — something happened and there is no quote worth leading with. Shape:",
+  '{"kind":"story","opening":"...","reason":"...","consequence":"...","context":"...","people":["..."]}',
+  "  opening — what happened, in YOUR OWN WORDS, carrying the turn that makes it a story.",
+  '    GOOD: FlyQuest were set to play the IEM Beijing Qualifier final... but had to forfeit',
+  '    BAD:  FlyQuest forfeit their match',
+  "    The bad one states an outcome; the good one sets up an expectation and breaks it,",
+  "    which is what makes someone read the next line.",
+  "  reason — the single detail that explains it. One line.",
+  '    GOOD: internet issues on their end meant playing on 200+ ping',
+  "  consequence — what it means now, or who it affects. May be empty.",
+  "",
+  "Both shapes also take:",
+  "  context — one short supporting fact from the source. Empty string if there is none.",
+  "  people — every player or personality NAMED, as nicknames only, speaker first.",
   "",
   "Rules:",
+  "- Retell the FACTS in your own words. Facts are nobody's property; sentences are.",
+  "  Never reuse the source's phrasing outside a direct quote — the post has to read as",
+  "  yours, not as a repost of the account you read it on.",
   "- Invent NOTHING. Every name, number, team and claim must appear in the source text.",
-  "- Never reword anything inside hook or quote. They are the speaker's words, not yours.",
-  "- If you are unsure of a detail, leave it out rather than guessing.",
+  "- Never reword anything inside hook or quote. Those are the speaker's words.",
+  "- If unsure of a detail, leave it out rather than guessing.",
   "- Plain English, no hype, no emoji, no hashtags, no links.",
   "- Use Counter-Strike vocabulary: AWPer not sniper, roster not squad list, IGL, LAN, Major.",
   "- NEVER transliterate a name by how it sounds, and never guess a Latin spelling. If you",
@@ -90,24 +102,37 @@ export async function POST(request: Request) {
   try {
     const raw = await ask(SYSTEM, source);
     const parsed = parseJson<{
+      kind?: string;
       hook?: string;
       speaker?: string;
       quote?: string;
+      opening?: string;
+      reason?: string;
+      consequence?: string;
       context?: string;
       people?: string[];
     }>(raw);
-    if (!parsed?.hook) {
+
+    const kind = parsed?.kind === "story" ? "story" : "quote";
+    // Each shape has one field it cannot do without.
+    const usable = kind === "story" ? parsed?.opening : parsed?.hook;
+    if (!usable) {
       return NextResponse.json({ error: "model returned no usable write-up" }, { status: 502 });
     }
+
     return NextResponse.json({
-      hook: correctNames(parsed.hook.trim()),
-      speaker: correctNames((parsed.speaker ?? "").trim()),
-      quote: correctNames((parsed.quote ?? "").trim()),
-      context: correctNames((parsed.context ?? "").trim()),
+      kind,
+      hook: correctNames((parsed?.hook ?? "").trim()),
+      speaker: correctNames((parsed?.speaker ?? "").trim()),
+      quote: correctNames((parsed?.quote ?? "").trim()),
+      opening: correctNames((parsed?.opening ?? "").trim()),
+      reason: correctNames((parsed?.reason ?? "").trim()),
+      consequence: correctNames((parsed?.consequence ?? "").trim()),
+      context: correctNames((parsed?.context ?? "").trim()),
       // Nicknames only, deduped — each becomes a photo the post can attach.
       people: [
         ...new Set(
-          (parsed.people ?? []).map((p) => correctNames(String(p).trim())).filter(Boolean),
+          (parsed?.people ?? []).map((p) => correctNames(String(p).trim())).filter(Boolean),
         ),
       ].slice(0, 4),
     });
