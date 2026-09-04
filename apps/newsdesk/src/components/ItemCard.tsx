@@ -155,7 +155,7 @@ export default function ItemCard({
    * disappeared and the English card stopped being offered, on a post whose picture was
    * still entirely in Russian.
    */
-  const media = planMedia(item);
+  const media = planMedia(item, writeup?.people ?? []);
   const draft = { ...written, images: media.options, needsCard: media.needsCard };
 
   // A post whose headline promises a list or a number it does not contain must not be
