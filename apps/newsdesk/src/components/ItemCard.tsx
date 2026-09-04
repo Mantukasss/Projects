@@ -7,10 +7,18 @@ import {
   IconExternalLink,
   IconLanguage,
   IconListDetails,
+  IconPencil,
   IconPhotoPlus,
 } from "@tabler/icons-react";
 import type { FeedItem } from "@/lib/types";
-import { SOURCE_NAME, compose, composeWithDetail, postLength } from "@/lib/compose";
+import {
+  SOURCE_NAME,
+  compose,
+  composeFromWriteup,
+  composeWithDetail,
+  postLength,
+  type Writeup,
+} from "@/lib/compose";
 import CrestTile from "./CrestTile";
 
 const SOURCE_TONE: Record<FeedItem["source"], string> = {
@@ -62,6 +70,43 @@ export default function ItemCard({
    * Most of these misses are the rate limiter, so a retry usually works.
    */
   const [deadImages, setDeadImages] = useState<string[]>([]);
+  const [writeup, setWriteup] = useState<Writeup | null>(null);
+  const [writing, setWriting] = useState(false);
+  const [writeError, setWriteError] = useState<string | null>(null);
+
+  /**
+   * Turns a headline into the three-part post the incumbents write.
+   *
+   * HLTV articles are fetched first so the summary is written from the story rather than
+   * from its headline — a lead that says what a quote MEANS cannot be derived from the
+   * quote alone, and that is the whole difference between the two formats.
+   */
+  const writeItUp = async (forItem: FeedItem) => {
+    setWriting(true);
+    setWriteError(null);
+    try {
+      let paragraphs: string[] = [];
+      if (forItem.source === "hltv") {
+        const detailRes = await fetch(`/api/detail?url=${encodeURIComponent(forItem.url)}`);
+        if (detailRes.ok) {
+          const data = await detailRes.json();
+          if (Array.isArray(data.paragraphs)) paragraphs = data.paragraphs;
+        }
+      }
+      const res = await fetch("/api/writeup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: forItem.title, summary: forItem.summary, paragraphs }),
+      });
+      const data = await res.json();
+      if (res.ok && data.lead) setWriteup(data as Writeup);
+      else setWriteError(data.error ?? "write-up failed");
+    } catch {
+      setWriteError("write-up failed");
+    } finally {
+      setWriting(false);
+    }
+  };
   const [retryNonce, setRetryNonce] = useState(0);
 
   const retryImages = () => {
@@ -95,7 +140,11 @@ export default function ItemCard({
   // the bare headline. A translated post replaces the headline entirely — the Russian is
   // never what goes out.
   const source = translated ? { ...item, title: translated, summary: "" } : item;
-  const draft = detail ? composeWithDetail(source, detail) : compose(source);
+  const draft = writeup
+    ? composeFromWriteup(source, writeup)
+    : detail
+      ? composeWithDetail(source, detail)
+      : compose(source);
 
   // A post whose headline promises a list or a number it does not contain must not be
   // copyable. The block is easier to fix than to bypass — one tap loads the detail.
@@ -344,6 +393,19 @@ export default function ItemCard({
         <p className="mt-3 text-sm text-text-muted">
           Nothing found in the article — open it and check before posting.
         </p>
+      )}
+
+      <button
+        onClick={() => writeItUp(source)}
+        disabled={writing}
+        className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-blue px-3 text-sm text-blue transition-colors duration-150 ease-out disabled:opacity-50"
+      >
+        <IconPencil size={18} stroke={1.5} />
+        {writing ? "Writing…" : writeup ? "Rewrite it" : "Write it up"}
+      </button>
+
+      {writeError && (
+        <p className="mt-2 text-xs text-coral">{writeError}</p>
       )}
 
       <div className="mt-4 grid grid-cols-2 gap-2">
