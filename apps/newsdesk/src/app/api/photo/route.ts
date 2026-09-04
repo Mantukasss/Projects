@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { USER_AGENT } from "@/lib/sources/fetchXml";
-import { fetchTeamLogo, type Wiki } from "@/lib/sources/liquipediaLogo";
+import { fetchPlayerPhoto, type Wiki } from "@/lib/sources/liquipediaLogo";
 
 export const runtime = "nodejs";
 
 /**
  * Streams a player's photo from their Liquipedia page.
  *
- * A post about a person should show the person. This reuses the infobox extraction the
- * badge route uses — the first image on a player's page is their portrait, the same way it
- * is a team's crest on a team page — so there is one mechanism, not two.
+ * A post about a person should show the person. Note that this is NOT the same rule as the
+ * crest route: a player's infobox leads with their team badge and a country flag, so
+ * "first image" returns the wrong picture entirely. See fetchPlayerPhoto.
  *
  * A miss is entirely normal: the nickname is guessed from the headline, plenty of players
  * have no photo on the wiki, and the page may not exist at all. The route answers 404 and
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   if (!name) return new NextResponse("missing name", { status: 400 });
   const wiki: Wiki = params.get("wiki") === "valorant" ? "valorant" : "counterstrike";
 
-  const photoUrl = await fetchTeamLogo(name, wiki);
+  const photoUrl = await fetchPlayerPhoto(name, wiki);
   if (!photoUrl) return new NextResponse("no photo found", { status: 404 });
 
   const upstream = await fetch(photoUrl, {
