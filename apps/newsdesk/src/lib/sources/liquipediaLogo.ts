@@ -55,6 +55,67 @@ function upscale(url: string): string {
 /** Liquipedia is one wiki per game; a VALORANT org has no page on the Counter-Strike one. */
 export type Wiki = "counterstrike" | "valorant";
 
+/**
+ * Pulls the section-0 HTML of a Liquipedia page, cached, so both the crest and the portrait
+ * readers work from one request.
+ */
+async function fetchInfoboxHtml(title: string, wiki: Wiki): Promise<string> {
+  const api =
+    `https://liquipedia.net/${wiki}/api.php` +
+    "?action=parse&format=json&prop=text&section=0&page=" +
+    encodeURIComponent(title.replace(/ /g, "_"));
+  const parsed = (await fetchJson(api, 86_400)) as { parse?: { text?: { "*"?: string } } };
+  return parsed.parse?.text?.["*"] ?? "";
+}
+
+/** Liquipedia names logo files with a mode suffix, and flags live under a Flag path. */
+const LOGO_FILE = /logo|allmode|lightmode|darkmode/i;
+const FLAG_FILE = /\/Flag|flag_|_flag/i;
+
+/**
+ * A player's PHOTOGRAPH, which is not the first image on their page.
+ *
+ * A player infobox leads with their team's crest and a country flag, so taking the first
+ * image — the rule that is right for a team page — returned Team Spirit's badge as
+ * "zont1x", and the generated poster came out with a dark logo behind the words instead of
+ * a face. The portrait is identified by the file being named after the player, and failing
+ * that by being neither a crest nor a flag.
+ */
+export async function fetchPlayerPhoto(
+  name: string,
+  wiki: Wiki = "counterstrike",
+): Promise<string | null> {
+  const key = `photo:${wiki}:${name}`;
+  const cached = cache.get(key);
+  if (cached) {
+    const ttl = cached.url ? HIT_TTL_MS : MISS_TTL_MS;
+    if (Date.now() - cached.at < ttl) return cached.url;
+  }
+
+  try {
+    const html = await fetchInfoboxHtml(name, wiki);
+    const sources = [...html.matchAll(/<img[^>]+src="([^"]+)"/g)].map((match) => match[1]);
+
+    const nickname = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const named = sources.find((src) =>
+      src.toLowerCase().replace(/[^a-z0-9]/g, "").includes(nickname),
+    );
+    const anyPortrait = sources.find(
+      (src) => !LOGO_FILE.test(src) && !FLAG_FILE.test(src),
+    );
+    const picked = named ?? anyPortrait ?? null;
+
+    const url = picked
+      ? upscale(picked.startsWith("http") ? picked : `https://liquipedia.net${picked}`)
+      : null;
+    cache.set(key, { url, at: Date.now() });
+    return url;
+  } catch {
+    cache.set(key, { url: null, at: Date.now() });
+    return null;
+  }
+}
+
 export async function fetchTeamLogo(
   title: string,
   wiki: Wiki = "counterstrike",

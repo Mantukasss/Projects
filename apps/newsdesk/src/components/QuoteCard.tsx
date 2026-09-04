@@ -75,17 +75,28 @@ export default function QuoteCard({
    * and if the export turns out to be blocked we redraw without the photo and say so — a
    * card that saves beats a prettier one that does not.
    */
+  /**
+   * The background photograph.
+   *
+   * The player's portrait is preferred over the source's own image for two reasons. It
+   * comes through our own origin, so drawing it leaves the canvas exportable — a source
+   * photo is cross-origin and taints it. And a Telegram item's picture is usually a graphic
+   * with Russian text burned into it, which is the exact thing this card exists to replace.
+   */
   useEffect(() => {
-    if (!item.image) return;
-    // A Telegram screenshot is usually a picture of Russian text. Baking it into an English
-    // card would put the thing the reader cannot read right next to the thing they can.
-    if (/[\u0400-\u04FF]/.test(`${item.title} ${item.summary}`)) return;
+    const foreign = /[\u0400-\u04FF]/.test(`${item.title} ${item.summary}`);
+    const portrait = item.playerName
+      ? `/api/photo?name=${encodeURIComponent(item.playerName)}${item.source === "vlr" ? "&wiki=valorant" : ""}`
+      : null;
+    const src = portrait ?? (foreign ? null : item.image);
+    if (!src) return;
+
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => setSubject(img);
     img.onerror = () => setSubject(null);
-    img.src = item.image;
-  }, [item.image, item.title, item.summary]);
+    img.src = src;
+  }, [item.image, item.title, item.summary, item.playerName, item.source]);
 
   const parsed = splitQuote(item.title);
   // A quote leads with the words and credits the speaker underneath. Anything else leads
@@ -101,28 +112,29 @@ export default function QuoteCard({
     ctx.fillStyle = BG;
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-    // The subject photo fills the right third, faded into the background so the words stay
-    // the loudest thing on the card. This is the shape the accounts that own this beat use:
-    // a face, a crest, and a line of text.
-    const textWidth = subject ? WIDTH * 0.62 : WIDTH - PADDING * 2;
+    /**
+     * The photograph fills the card and the words sit on top of it.
+     *
+     * This is the shape every quote graphic in this scene uses — the player's face full
+     * bleed, a dark scrim over the lower half, the quote in heavy type across it. A photo
+     * boxed off to one side beside a column of text reads as a slide; this reads as a
+     * poster, and the difference is most of why one gets looked at.
+     */
+    const textWidth = WIDTH - PADDING * 2;
     if (subject && subject.width > 0) {
-      const panelX = WIDTH * 0.60;
-      const panelW = WIDTH - panelX;
-      const scale = Math.max(panelW / subject.width, HEIGHT / subject.height);
+      const scale = Math.max(WIDTH / subject.width, HEIGHT / subject.height);
       const drawW = subject.width * scale;
       const drawH = subject.height * scale;
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(panelX, 0, panelW, HEIGHT);
-      ctx.clip();
-      ctx.drawImage(subject, panelX + (panelW - drawW) / 2, (HEIGHT - drawH) / 2, drawW, drawH);
-      // Feather the left edge so the photo reads as part of the card, not pasted on.
-      const fade = ctx.createLinearGradient(panelX, 0, panelX + panelW * 0.55, 0);
-      fade.addColorStop(0, BG);
-      fade.addColorStop(1, "rgba(22,22,24,0)");
-      ctx.fillStyle = fade;
-      ctx.fillRect(panelX, 0, panelW, HEIGHT);
-      ctx.restore();
+      // Bias upward: faces sit in the top half, and the type belongs under them.
+      ctx.drawImage(subject, (WIDTH - drawW) / 2, (HEIGHT - drawH) * 0.3, drawW, drawH);
+
+      // The scrim earns the text its contrast without hiding the photograph.
+      const scrim = ctx.createLinearGradient(0, HEIGHT * 0.18, 0, HEIGHT);
+      scrim.addColorStop(0, "rgba(10,10,12,0)");
+      scrim.addColorStop(0.45, "rgba(10,10,12,0.72)");
+      scrim.addColorStop(1, "rgba(10,10,12,0.94)");
+      ctx.fillStyle = scrim;
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
     }
 
     ctx.fillStyle = SURFACE;
@@ -190,7 +202,21 @@ export default function QuoteCard({
     ctx.textBaseline = "top";
     const lineHeight = fontSize * 1.28;
     const blockHeight = lines.length * lineHeight;
-    let y = Math.max(PADDING + 10, logoBottom + 30, (HEIGHT - 210 - blockHeight) / 2);
+
+    // Anchored to the bottom over a photo, centred without one.
+    let y = subject
+      ? HEIGHT - PADDING - 96 - blockHeight
+      : Math.max(PADDING + 10, logoBottom + 30, (HEIGHT - 210 - blockHeight) / 2);
+
+    if (subject && parsed) {
+      // The opening mark that every quote graphic in this scene carries.
+      ctx.fillStyle = ACCENT;
+      ctx.font = `800 ${fontSize * 1.1}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+      ctx.fillText("\u201C\u201D", PADDING, y - fontSize * 1.15);
+      ctx.fillStyle = TEXT;
+      ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    }
+
     for (const line of lines) {
       ctx.fillText(line, PADDING, y);
       y += lineHeight;
@@ -219,7 +245,7 @@ export default function QuoteCard({
     ctx.fillText(sourceLabel, WIDTH - PADDING - labelWidth, HEIGHT - PADDING + 2);
 
     setReady(true);
-  }, [attribution, handle, headline, item.url, logo, subject]);
+  }, [attribution, handle, headline, item.url, logo, subject, parsed]);
 
   useEffect(draw, [draw]);
 

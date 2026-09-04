@@ -22,13 +22,19 @@ interface AtomEntry {
  * inside the HTML content. Preview URLs beat the thumbnail, which is tiny.
  */
 function imageFrom(entry: AtomEntry, contentHtml: string): string | undefined {
+  /**
+   * The query string is part of the URL, not decoration. A preview.redd.it link carries a
+   * signature in `s=`, and an earlier pattern here stopped at the first `&` — so every
+   * Reddit image came back truncated and 403'd, which showed up as a dead "From the source"
+   * tile on every Reddit post.
+   */
   const direct = contentHtml.match(
-    /https:\/\/(?:i\.redd\.it|preview\.redd\.it|i\.imgur\.com)\/[^\s"'<>&]+\.(?:png|jpe?g|gif)/i,
+    /https:\/\/(?:i\.redd\.it|preview\.redd\.it|i\.imgur\.com)\/[^\s"'<>]+/i,
   )?.[0];
-  if (direct) return direct;
+  if (direct) return decodeEntities(direct);
 
   const embedded = contentHtml.match(/<img[^>]+src="([^"]+)"/i)?.[1];
-  if (embedded) return embedded;
+  if (embedded) return decodeEntities(embedded);
 
   return entry["media:thumbnail"]?.["@_url"];
 }

@@ -301,7 +301,10 @@ export default function ItemCard({
         </p>
       )}
 
-      {blocked && (
+      {/* Only an item whose headline actually promised specifics has anything to fetch —
+          and only HLTV articles can be read. Showing this on a post blocked merely for
+          lacking a second image offered a fix that could not work. */}
+      {item.incomplete && detail === null && (
         <button
           onClick={loadDetail}
           disabled={loadingDetail}
