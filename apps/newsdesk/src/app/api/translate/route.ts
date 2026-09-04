@@ -59,14 +59,29 @@ async function resolveGroqModel(key: string): Promise<string | null> {
 /** Rolling alias on purpose: pinned Gemini names lose free-tier quota and 429 on every call. */
 const GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-flash-latest";
 
+/**
+ * The vocabulary rules are not pedantry. A literal translation of "снайпер" is "sniper",
+ * which no Counter-Strike account would ever write — it is "AWPer" — and one word like that
+ * tells the audience the post was machine-made. Sounding native is the whole job.
+ */
 const SYSTEM = [
-  "You translate Russian Counter-Strike esports posts into English for a news account.",
+  "You translate Russian Counter-Strike esports posts into English for a CS2 news account.",
   "Rules:",
   "- Return ONLY the English text. No preamble, no notes, no quotes around it.",
   "- Keep it under 200 characters and keep it factual. Do not add detail that is not there.",
   "- Keep player, team and tournament names in their standard Latin spelling.",
   "- If the original hedges (слух, сообщается, по слухам), keep the hedge in English.",
   "- Drop advertising, emoji spam and channel self-promotion.",
+  "Use Counter-Strike vocabulary, not literal translations:",
+  "- снайпер -> AWPer (never 'sniper')",
+  "- состав / ростер -> roster or lineup",
+  "- скамейка / запас -> bench",
+  "- игрок замены / стендин -> stand-in",
+  "- тренер -> coach; капитан / игрок-лидер -> IGL",
+  "- карта -> map; катка / матч -> match; фраг -> frag or kill",
+  "- трансфер / переход -> transfer or move",
+  "- отбор / квалификация -> qualifier",
+  "- лан -> LAN; мажор -> Major",
 ].join("\n");
 
 /**

@@ -43,7 +43,7 @@ export default function ItemCard({
   posted: boolean;
   cardMade: boolean;
   onTogglePosted: () => void;
-  onMakeCard: () => void;
+  onMakeCard: (item: FeedItem) => void;
 }) {
   const [detail, setDetail] = useState<{ teams: string[]; keyFact: string | null; images: string[] } | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -98,8 +98,10 @@ export default function ItemCard({
    * "Has media" means the source shipped a photo, or the card was made. Every item can
    * reach the second state in one tap, so this is a nudge rather than a wall.
    */
-  const hasMedia =
-    Boolean(draft.image) || Boolean(draft.secondImage) || extraImages.length > 0 || cardMade;
+  // Two images, never fewer. One picture reads as a caption; a pair reads as an event, and
+  // that is the difference between a post that gets looked at and one that gets scrolled.
+  const attachmentCount = draft.images.length + extraImages.length + (cardMade ? 1 : 0);
+  const hasMedia = attachmentCount >= 2;
 
   const blocked =
     (Boolean(item.incomplete) && detail === null) ||
@@ -180,9 +182,9 @@ export default function ItemCard({
         </pre>
       </div>
 
-      {(draft.image || draft.secondImage) && (
-        <div className={`mt-3 grid gap-2 ${draft.secondImage && draft.image ? "grid-cols-2" : "grid-cols-1"}`}>
-          {[draft.image, draft.secondImage].filter(Boolean).map((src) => (
+      {draft.images.length > 0 && (
+        <div className={`mt-3 grid gap-2 ${draft.images.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+          {draft.images.map((src) => (
             // Loaded straight from the source. HLTV's image CDN answers a browser and
             // refuses a server, so routing these through /api/image blanked every player
             // photo in the feed — the proxy exists for the canvas, not for display.
@@ -198,11 +200,11 @@ export default function ItemCard({
         </div>
       )}
 
-      {draft.secondImage && (
-        <p className="mt-2 text-xs text-text-low">
-          Two images: the news, then the game. Attach both.
-        </p>
-      )}
+      <p className="mt-2 text-xs text-text-low">
+        {attachmentCount >= 2
+          ? `${attachmentCount} images — attach at least two.`
+          : "Needs a second image. Make the card."}
+      </p>
 
       {extraImages.length > 0 && (
         <div className="mt-3">
@@ -254,7 +256,9 @@ export default function ItemCard({
 
       {!hasMedia && (
         <p className="mt-3 text-sm text-coral">
-          No image yet. Posts without one get scrolled past — make the card first.
+          {needsTranslation
+            ? "The source picture is Russian text your audience cannot read, so it is not attached. Make the English card."
+            : "Needs two images. One reads as a caption; two read as an event."}
         </p>
       )}
 
@@ -281,9 +285,9 @@ export default function ItemCard({
           {copied === "reply" ? "Copied" : "Copy reply 1"}
         </button>
         <button
-          onClick={onMakeCard}
+          onClick={() => onMakeCard(source)}
           className={`flex min-h-11 items-center justify-center gap-2 rounded-md border text-sm transition-colors duration-150 ease-out ${
-            !hasMedia
+            draft.needsCard && !cardMade
               ? "border-coral text-coral"
               : draft.needsCard
                 ? "border-purple text-purple"
@@ -291,7 +295,7 @@ export default function ItemCard({
           }`}
         >
           <IconPhotoPlus size={18} stroke={1.5} />
-          {!hasMedia ? "No image — make one" : draft.needsCard ? "Make card" : "Make card"}
+          {draft.needsCard && !cardMade ? "Make the English card" : "Make card"}
         </button>
         <a
           href={item.url}

@@ -47,14 +47,15 @@ export interface Draft {
   body: string;
   /** The follow-up reply carrying the source link. */
   reply: string;
-  /** Filled when the source gave us an image we can attach directly. */
-  image?: string;
   /**
-   * The second image. X shows two attachments side by side, and a Valve update post reads
-   * far better as "here are the notes" plus "here is the game" than as one lonely card —
-   * which is how the accounts that own this beat actually post an update.
+   * The images to attach, in order, best first. X shows two side by side and a pair reads
+   * as an event where one reads as a caption, so the composer always tries to supply two.
    */
-  secondImage?: string;
-  /** True when there is no source image, so the quote card is the media. */
+  images: string[];
+  /**
+   * True when the images on their own do not carry the story and the generated card should
+   * be made — a post with no source photo, or a Russian one whose only picture is a
+   * screenshot nobody in the audience can read.
+   */
   needsCard: boolean;
 }

@@ -41,6 +41,7 @@ export default function Feed() {
   const [handle, setHandle] = useState("@your_handle");
   const [sources, setSources] = useState<SourceId[]>(DEFAULT_SOURCES);
   const [showSettings, setShowSettings] = useState(false);
+  const [sortByScore, setSortByScore] = useState(false);
   const [cardFor, setCardFor] = useState<FeedItem | null>(null);
   // Which items have had their card generated, so "no image" clears once one exists.
   const [carded, setCarded] = useState<string[]>([]);
@@ -54,10 +55,13 @@ export default function Feed() {
   }, []);
 
   const load = useCallback(
-    async (active: SourceId[]) => {
+    async (active: SourceId[], byScore = false) => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/feed?sources=${active.join(",")}`, { cache: "no-store" });
+        const res = await fetch(
+          `/api/feed?sources=${active.join(",")}${byScore ? "&sort=score" : ""}`,
+          { cache: "no-store" },
+        );
         const data = await res.json();
         setItems(data.items ?? []);
         setErrors(data.errors ?? []);
@@ -73,11 +77,11 @@ export default function Feed() {
 
   useEffect(() => {
     if (!hydrated) return;
-    load(sources);
+    load(sources, sortByScore);
     // Sources are cached for 60s server-side, so polling faster than that buys nothing.
-    const timer = setInterval(() => load(sources), 90_000);
+    const timer = setInterval(() => load(sources, sortByScore), 90_000);
     return () => clearInterval(timer);
-  }, [hydrated, load, sources]);
+  }, [hydrated, load, sources, sortByScore]);
 
   const togglePosted = (id: string) => {
     setPosted((current) => {
@@ -119,7 +123,7 @@ export default function Feed() {
           </p>
         </div>
         <button
-          onClick={() => load(sources)}
+          onClick={() => load(sources, sortByScore)}
           aria-label="Refresh"
           className="ml-auto flex min-h-11 min-w-11 items-center justify-center rounded-md border border-border text-text-muted transition-colors duration-150 ease-out hover:text-text"
         >
@@ -133,6 +137,25 @@ export default function Feed() {
           <IconSettings size={20} stroke={1.5} />
         </button>
       </header>
+
+      <div className="mb-4 flex gap-2">
+        {[
+          { label: "Newest first", value: false },
+          { label: "Best first", value: true },
+        ].map((option) => (
+          <button
+            key={option.label}
+            onClick={() => setSortByScore(option.value)}
+            className={`min-h-11 flex-1 rounded-md border text-sm transition-colors duration-150 ease-out ${
+              sortByScore === option.value
+                ? "border-amber text-amber"
+                : "border-border text-text-low"
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
 
       {showSettings && (
         <section className="mb-6 rounded-2xl border border-border bg-surface p-4">
@@ -190,8 +213,10 @@ export default function Feed() {
             posted={posted.includes(item.id)}
             onTogglePosted={() => togglePosted(item.id)}
             cardMade={carded.includes(item.id)}
-            onMakeCard={() => {
-              setCardFor(item);
+            // The card is built from whatever the row hands back — the translated version
+            // when there is one, so an English card never carries the Russian original.
+            onMakeCard={(forCard) => {
+              setCardFor(forCard);
               setCarded((current) =>
                 current.includes(item.id) ? current : [...current, item.id],
               );

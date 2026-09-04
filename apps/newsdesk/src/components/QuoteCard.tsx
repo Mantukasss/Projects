@@ -77,12 +77,15 @@ export default function QuoteCard({
    */
   useEffect(() => {
     if (!item.image) return;
+    // A Telegram screenshot is usually a picture of Russian text. Baking it into an English
+    // card would put the thing the reader cannot read right next to the thing they can.
+    if (/[\u0400-\u04FF]/.test(`${item.title} ${item.summary}`)) return;
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => setSubject(img);
     img.onerror = () => setSubject(null);
     img.src = item.image;
-  }, [item.image]);
+  }, [item.image, item.title, item.summary]);
 
   const parsed = splitQuote(item.title);
   // A quote leads with the words and credits the speaker underneath. Anything else leads

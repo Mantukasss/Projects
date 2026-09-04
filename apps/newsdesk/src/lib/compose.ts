@@ -112,14 +112,6 @@ function firstSentences(text: string, budget: number): string {
   return out.length > budget ? `${out.slice(0, budget).replace(/\s+\S*$/, "")}…` : out;
 }
 
-/** Valve's own posts about the game — the ones that deserve the two-image treatment. */
-function isGameUpdate(item: FeedItem): boolean {
-  return (
-    item.source === "steam" ||
-    (item.source === "telegram" && /\b(update|обнов|сборк|build)\b/i.test(item.title))
-  );
-}
-
 export function compose(item: FeedItem): Draft {
   const emoji = KIND_EMOJI[item.kind];
   let body: string;
@@ -162,12 +154,51 @@ export function compose(item: FeedItem): Draft {
   // costs the post a line of substance.
   const credited = handle ? `${body} via ${handle}` : body;
 
+  const { images, needsCard } = planMedia(item);
+
   return {
     body: credited,
     reply: `Source: ${SOURCE_NAME[item.source]}\n${item.url}`,
-    image: item.image,
-    secondImage: item.source === "vlr" ? VALORANT_ARTWORK : isGameUpdate(item) ? CS2_ARTWORK : undefined,
-    needsCard: !item.image,
+    images,
+    needsCard,
+  };
+}
+
+/** Text in an alphabet this account's audience does not read. */
+function isForeignScript(text: string): boolean {
+  return /[\u0400-\u04FF]/.test(text);
+}
+
+/**
+ * Chooses what a post attaches, in order, best first.
+ *
+ * Two rules drive it. Every post gets media, because a text-only post in this niche is
+ * scrolled past whatever it says. And a post aimed at an English audience never carries a
+ * picture of Russian text: the screenshot that came with a Telegram item is unreadable to
+ * the people being posted to, so it is dropped and the generated English card takes its
+ * place. The badge or the game mark then fills the second slot.
+ */
+export function planMedia(item: FeedItem): { images: string[]; needsCard: boolean } {
+  const foreign = isForeignScript(`${item.title} ${item.summary}`);
+  const images: string[] = [];
+
+  // The source photo, unless it is a screenshot of a language the audience cannot read.
+  if (item.image && !foreign) images.push(item.image);
+
+  // The team's crest, which is what makes a post look like it came from someone on the beat.
+  if (item.teamPage) {
+    const wiki = item.source === "vlr" ? "&wiki=valorant" : "";
+    images.push(`/api/logo?title=${encodeURIComponent(item.teamPage)}${wiki}`);
+  }
+
+  // The game's mark, as the reliable last resort — it always resolves.
+  images.push(item.source === "vlr" ? VALORANT_ARTWORK : CS2_ARTWORK);
+
+  return {
+    images: images.slice(0, 2),
+    // The card is needed when the words are not carried by any picture we have: no source
+    // photo at all, or a foreign-script item whose only photo was just discarded.
+    needsCard: foreign || !item.image,
   };
 }
 
