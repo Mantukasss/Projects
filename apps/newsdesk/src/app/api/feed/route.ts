@@ -10,6 +10,7 @@ import { alreadyCovered, fetchRivalPosts } from "@/lib/sources/rivals";
 import { markIncomplete } from "@/lib/incomplete";
 import { teamInText } from "@/lib/teams";
 import { playerInText } from "@/lib/players";
+import { itemNameIn } from "@/lib/sources/csItems";
 import { fetchVlr } from "@/lib/sources/vlr";
 import { staleOnError } from "@/lib/sources/staleCache";
 
@@ -70,11 +71,13 @@ export async function GET(request: Request) {
     const teamPage =
       item.source === "liquipedia" ? item.title : teamInText(`${item.title} ${item.summary}`);
     const playerName = playerInText(item.title);
+    const itemName = itemNameIn(item.title);
     return {
       ...flagged,
       ...(scooped ? { scooped } : {}),
       ...(teamPage ? { teamPage } : {}),
       ...(playerName ? { playerName } : {}),
+      ...(itemName ? { itemName } : {}),
     };
   });
 

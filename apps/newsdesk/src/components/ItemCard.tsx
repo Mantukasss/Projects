@@ -51,6 +51,22 @@ export default function ItemCard({
   const [translated, setTranslated] = useState<string | null>(null);
   const [translating, setTranslating] = useState(false);
   const [translateError, setTranslateError] = useState<string | null>(null);
+  /**
+   * Options whose image failed to load, and a nonce to retry them with.
+   *
+   * Every option is a guess that can miss — a nickname with no wiki page, a crest behind
+   * Liquipedia's rate limiter, a CDN having a moment. These are NOT hidden: a labelled
+   * "did not load, tap to retry" tile tells you the option exists and that the miss is
+   * probably temporary, where a vanishing tile just looks like the app found nothing.
+   * Most of these misses are the rate limiter, so a retry usually works.
+   */
+  const [deadImages, setDeadImages] = useState<string[]>([]);
+  const [retryNonce, setRetryNonce] = useState(0);
+
+  const retryImages = () => {
+    setDeadImages([]);
+    setRetryNonce((n) => n + 1);
+  };
 
   // Cyrillic in the text means this needs translating before it can go out in English.
   const needsTranslation = /[\u0400-\u04FF]/.test(`${item.title} ${item.summary}`);
@@ -100,7 +116,9 @@ export default function ItemCard({
    */
   // Two images, never fewer. One picture reads as a caption; a pair reads as an event, and
   // that is the difference between a post that gets looked at and one that gets scrolled.
-  const attachmentCount = draft.images.length + extraImages.length + (cardMade ? 1 : 0);
+  // Every option stays on screen; only the ones that actually loaded are counted as ready.
+  const loadedCount = draft.images.filter((option) => !deadImages.includes(option.url)).length;
+  const attachmentCount = loadedCount + extraImages.length + (cardMade ? 1 : 0);
   const hasMedia = attachmentCount >= 2;
 
   const blocked =
@@ -184,8 +202,16 @@ export default function ItemCard({
 
       {draft.images.length > 0 && (
         <div className="mt-3">
-          <p className="mb-2 text-xs uppercase tracking-wide text-text-low">
+          <p className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-text-low">
             Pick two — tap to open, then save
+            {deadImages.length > 0 && (
+              <button
+                onClick={retryImages}
+                className="rounded-md border border-border px-2 py-0.5 normal-case tracking-normal text-amber"
+              >
+                Retry {deadImages.length}
+              </button>
+            )}
           </p>
           <div className="grid grid-cols-2 gap-2">
             {draft.images.map((option) => (
@@ -200,12 +226,24 @@ export default function ItemCard({
                     refuses a server, so routing these through /api/image blanked every
                     player photo — the proxy exists for the canvas, not for display. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={option.url}
-                  alt={option.label}
-                  className="h-28 w-full bg-surface-elevated object-contain"
-                  loading="lazy"
-                />
+                {deadImages.includes(option.url) ? (
+                  <span className="flex h-28 w-full items-center justify-center bg-surface-elevated px-2 text-center text-[11px] text-text-low">
+                    Did not load — tap Retry
+                  </span>
+                ) : (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={retryNonce ? `${option.url}${option.url.includes("?") ? "&" : "?"}r=${retryNonce}` : option.url}
+                    alt={option.label}
+                    className="h-28 w-full bg-surface-elevated object-contain"
+                    loading="lazy"
+                    onError={() =>
+                      setDeadImages((current) =>
+                        current.includes(option.url) ? current : [...current, option.url],
+                      )
+                    }
+                  />
+                )}
                 <span className="block px-2 py-1 text-[11px] text-text-muted">
                   {option.label}
                   {option.caution && (
