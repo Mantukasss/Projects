@@ -159,9 +159,25 @@ export async function POST(request: Request) {
 
   // Each provider is tried once. A failure here must never look like a broken feed, so the
   // card falls back to showing the original.
+  // The catch has to record too. Recording only inside the providers left a thrown error —
+  // a DNS failure, a socket reset, a bad JSON body — reported as the same flat
+  // "translation unavailable" as a wrong model, which is exactly the blindness the
+  // per-provider reporting was added to remove.
+  lastFailure = "";
   let translated: string | null = null;
-  if (groqKey) translated = await viaGroq(text, groqKey).catch(() => null);
-  if (!translated && geminiKey) translated = await viaGemini(text, geminiKey).catch(() => null);
+
+  if (groqKey) {
+    translated = await viaGroq(text, groqKey).catch((error: unknown) => {
+      lastFailure = `Groq threw: ${error instanceof Error ? error.message : String(error)}`;
+      return null;
+    });
+  }
+  if (!translated && geminiKey) {
+    translated = await viaGemini(text, geminiKey).catch((error: unknown) => {
+      lastFailure = `Gemini threw: ${error instanceof Error ? error.message : String(error)}`;
+      return null;
+    });
+  }
 
   if (!translated) {
     return NextResponse.json(
