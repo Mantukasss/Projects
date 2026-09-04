@@ -202,8 +202,10 @@ export default function ItemCard({
 
       <p className="mt-2 text-xs text-text-low">
         {attachmentCount >= 2
-          ? `${attachmentCount} images — attach at least two.`
-          : "Needs a second image. Make the card."}
+          ? `${attachmentCount} images ready — attach two.`
+          : draft.needsCard
+            ? "This post has no picture of its own. Build the image — it draws the headline and the team crest onto a branded graphic."
+            : "One image. Build a second so the post reads as an event, not a caption."}
       </p>
 
       {extraImages.length > 0 && (
@@ -287,15 +289,21 @@ export default function ItemCard({
         <button
           onClick={() => onMakeCard(source)}
           className={`flex min-h-11 items-center justify-center gap-2 rounded-md border text-sm transition-colors duration-150 ease-out ${
-            draft.needsCard && !cardMade
-              ? "border-coral text-coral"
+            cardMade
+              ? "border-green text-green"
               : draft.needsCard
-                ? "border-purple text-purple"
+                ? "border-coral text-coral"
                 : "border-border text-text-muted hover:text-text"
           }`}
         >
           <IconPhotoPlus size={18} stroke={1.5} />
-          {draft.needsCard && !cardMade ? "Make the English card" : "Make card"}
+          {cardMade
+            ? "Image ready"
+            : draft.needsCard
+              ? needsTranslation
+                ? "Build English image"
+                : "Build image"
+              : "Extra image"}
         </button>
         <a
           href={item.url}

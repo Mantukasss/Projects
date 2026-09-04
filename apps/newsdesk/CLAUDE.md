@@ -63,6 +63,14 @@ and the app gains Google sign-in copied from `apps/hub`.
   page's whole image list, which includes every opponent from its match tables, so MOUZ
   resolved to "4klogo" and Imperial Esports to "Red Canids". Only section 0 gives the team's
   own badge. `prop=pageimages` returns nothing — the extension is not populated here.
+- **Never attach a bare team crest as a post image.** They are transparent PNGs drawn for a
+  white wiki page — some dark, some wordmarks, some thin line art — and posted raw they read
+  as a missing asset. `QuoteCard` sets them on a consistent rounded plate instead, which is
+  what makes a run of posts look like one publication rather than a scrape.
+- **The image often IS the news.** A Reddit item like "Glock-18 | Floating Camo" is a skin
+  concept; posting that headline beside a generic game capsule is worse than not posting it.
+  `reddit.ts` pulls the full-size image from the entry content, preferring i.redd.it and
+  preview.redd.it links over the tiny media:thumbnail.
 - **A post never carries a picture of Russian text.** The audience cannot read it, so
   `planMedia` drops a foreign-script item's screenshot and the generated English card takes
   its place; `QuoteCard` refuses to bake one in for the same reason. Do not "fix" this by
