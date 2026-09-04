@@ -183,20 +183,38 @@ export default function ItemCard({
       </div>
 
       {draft.images.length > 0 && (
-        <div className={`mt-3 grid gap-2 ${draft.images.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
-          {draft.images.map((src) => (
-            // Loaded straight from the source. HLTV's image CDN answers a browser and
-            // refuses a server, so routing these through /api/image blanked every player
-            // photo in the feed — the proxy exists for the canvas, not for display.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={src}
-              src={src}
-              alt=""
-              className="w-full rounded-xl border border-border"
-              loading="lazy"
-            />
-          ))}
+        <div className="mt-3">
+          <p className="mb-2 text-xs uppercase tracking-wide text-text-low">
+            Pick two — tap to open, then save
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {draft.images.map((option) => (
+              <a
+                key={option.url}
+                href={option.url}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="block overflow-hidden rounded-xl border border-border transition-colors duration-150 ease-out hover:border-border-focus"
+              >
+                {/* Loaded straight from the source. HLTV's image CDN answers a browser and
+                    refuses a server, so routing these through /api/image blanked every
+                    player photo — the proxy exists for the canvas, not for display. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={option.url}
+                  alt={option.label}
+                  className="h-28 w-full bg-surface-elevated object-contain"
+                  loading="lazy"
+                />
+                <span className="block px-2 py-1 text-[11px] text-text-muted">
+                  {option.label}
+                  {option.caution && (
+                    <span className="block text-amber">{option.caution}</span>
+                  )}
+                </span>
+              </a>
+            ))}
+          </div>
         </div>
       )}
 

@@ -36,6 +36,8 @@ export interface FeedItem {
    * card resolves it to a badge so a post about a team goes out wearing that team's crest.
    */
   teamPage?: string;
+  /** Nickname of the player this item is about, guessed from the headline. See players.ts. */
+  playerName?: string;
   /** Higher = post this sooner. See score.ts. */
   score: number;
   /** Why it scored what it scored — shown in the UI so the ranking is inspectable. */
@@ -48,10 +50,11 @@ export interface Draft {
   /** The follow-up reply carrying the source link. */
   reply: string;
   /**
-   * The images to attach, in order, best first. X shows two side by side and a pair reads
-   * as an event where one reads as a caption, so the composer always tries to supply two.
+   * Everything this post could attach, best first. X shows two side by side and a pair
+   * reads as an event where one reads as a caption — but which two tell the story is a
+   * judgement made by looking, so they are offered rather than chosen.
    */
-  images: string[];
+  images: import("./compose").MediaOption[];
   /**
    * True when the images on their own do not carry the story and the generated card should
    * be made — a post with no source photo, or a Russian one whose only picture is a

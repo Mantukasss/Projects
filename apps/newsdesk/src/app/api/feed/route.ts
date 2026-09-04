@@ -9,6 +9,7 @@ import { fetchTelegram } from "@/lib/sources/telegram";
 import { alreadyCovered, fetchRivalPosts } from "@/lib/sources/rivals";
 import { markIncomplete } from "@/lib/incomplete";
 import { teamInText } from "@/lib/teams";
+import { playerInText } from "@/lib/players";
 import { fetchVlr } from "@/lib/sources/vlr";
 import { staleOnError } from "@/lib/sources/staleCache";
 
@@ -68,7 +69,13 @@ export async function GET(request: Request) {
     // already about a team page, so they use their own title.
     const teamPage =
       item.source === "liquipedia" ? item.title : teamInText(`${item.title} ${item.summary}`);
-    return { ...flagged, ...(scooped ? { scooped } : {}), ...(teamPage ? { teamPage } : {}) };
+    const playerName = playerInText(item.title);
+    return {
+      ...flagged,
+      ...(scooped ? { scooped } : {}),
+      ...(teamPage ? { teamPage } : {}),
+      ...(playerName ? { playerName } : {}),
+    };
   });
 
   const scored = dedupe(annotated.map(scoreItem));
