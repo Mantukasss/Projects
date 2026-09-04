@@ -72,6 +72,15 @@ and the app gains Google sign-in copied from `apps/hub`.
   colour from `teams.ts`, filling a square. That square, repeated post after post, is what
   makes a feed read as a publication; the same logo transparent on dark reads as an asset
   that failed to load.
+- **An aggregator's graphic is watermarked, and that is the real objection.** A Telegram
+  channel's quote card carries its handle and logo, so posting it republishes their asset
+  under your name — which is what separates an account people follow from one they recognise
+  as a mirror. It is labelled "Carries the channel's watermark" and ranked LAST, behind every
+  original alternative, rather than removed: sometimes it is the only picture of a moment.
+- **`ResultCard` is the answer to that, not a nicety.** The facts of a match belong to
+  nobody, so the picture of them can be ours: both crests on their brand colours, the score
+  across the seam, the event beneath. `parseResult` is deliberately strict — both sides must
+  resolve to crests we hold, because a scoreboard naming the wrong winner is worse than none.
 - **Never attach a bare team crest as a post image.** They are transparent PNGs drawn for a
   white wiki page — some dark, some wordmarks, some thin line art — and posted raw they read
   as a missing asset. `QuoteCard` sets them on a consistent rounded plate instead, which is
