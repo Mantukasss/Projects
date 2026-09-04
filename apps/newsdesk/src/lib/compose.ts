@@ -185,19 +185,18 @@ export function planMedia(item: FeedItem): { images: string[]; needsCard: boolea
   // The source photo, unless it is a screenshot of a language the audience cannot read.
   if (item.image && !foreign) images.push(item.image);
 
-  // The team's crest, which is what makes a post look like it came from someone on the beat.
-  if (item.teamPage) {
-    const wiki = item.source === "vlr" ? "&wiki=valorant" : "";
-    images.push(`/api/logo?title=${encodeURIComponent(item.teamPage)}${wiki}`);
-  }
+  // The crest is deliberately NOT attached on its own. A bare transparent PNG posted as an
+  // image looks like a placeholder, because that is what it is — the crest belongs on the
+  // generated card, set against the brand background alongside the words. Composed, it
+  // reads as a graphic someone made; alone, it reads as a missing asset.
 
   // The game's mark, as the reliable last resort — it always resolves.
   images.push(item.source === "vlr" ? VALORANT_ARTWORK : CS2_ARTWORK);
 
   return {
     images: images.slice(0, 2),
-    // The card is needed when the words are not carried by any picture we have: no source
-    // photo at all, or a foreign-script item whose only photo was just discarded.
+    // The card carries the words, so it is needed whenever no picture we have does: a
+    // foreign-script item whose only photo was just discarded, or no source photo at all.
     needsCard: foreign || !item.image,
   };
 }

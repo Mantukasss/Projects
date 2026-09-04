@@ -10,6 +10,27 @@ interface AtomEntry {
   id?: string;
   published?: string;
   updated?: string;
+  "media:thumbnail"?: { "@_url"?: string };
+}
+
+/**
+ * The picture is the post.
+ *
+ * A Reddit item like "Glock-18 | Floating Camo" is a skin concept — the image IS the news,
+ * and posting the headline beside a generic game capsule is worse than not posting it.
+ * Reddit exposes the image twice over: a media:thumbnail element, and full-size links
+ * inside the HTML content. Preview URLs beat the thumbnail, which is tiny.
+ */
+function imageFrom(entry: AtomEntry, contentHtml: string): string | undefined {
+  const direct = contentHtml.match(
+    /https:\/\/(?:i\.redd\.it|preview\.redd\.it|i\.imgur\.com)\/[^\s"'<>&]+\.(?:png|jpe?g|gif)/i,
+  )?.[0];
+  if (direct) return direct;
+
+  const embedded = contentHtml.match(/<img[^>]+src="([^"]+)"/i)?.[1];
+  if (embedded) return embedded;
+
+  return entry["media:thumbnail"]?.["@_url"];
 }
 
 /**
@@ -34,7 +55,9 @@ export async function fetchReddit(): Promise<FeedItem[]> {
     const url = asArray(entry.link)[0]?.["@_href"]?.trim();
     if (!title || !url) return [];
 
-    const rawContent = typeof entry.content === "object" ? entry.content?.["#text"] : entry.content;
+    const rawContent = String(
+      (typeof entry.content === "object" ? entry.content?.["#text"] : entry.content) ?? "",
+    );
 
     return [
       {
@@ -42,8 +65,9 @@ export async function fetchReddit(): Promise<FeedItem[]> {
         source: "reddit",
         kind: "news",
         title,
-        summary: stripTags(String(rawContent ?? "")).slice(0, 240),
+        summary: stripTags(rawContent).slice(0, 240),
         url,
+        image: imageFrom(entry, rawContent),
         publishedAt: new Date(entry.published ?? entry.updated ?? Date.now()).toISOString(),
         score: 0,
         reasons: [],

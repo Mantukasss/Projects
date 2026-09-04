@@ -134,14 +134,46 @@ export default function QuoteCard({
     // square crest both land at the same optical weight instead of one dwarfing the other.
     let logoBottom = 0;
     if (logo && logo.width > 0 && logo.height > 0) {
-      const BOX = subject ? 110 : 150;
-      const scale = Math.min(BOX / logo.width, BOX / logo.height);
+      /**
+       * The crest sits on a plate rather than floating on the background.
+       *
+       * These logos are transparent PNGs drawn for a white wiki page: some are dark, some
+       * are wordmarks, some are thin line art, and dropped straight onto a dark card they
+       * read as a broken asset. A consistent rounded plate behind them gives every crest
+       * the same footprint and the same contrast, which is what makes a set of posts look
+       * like one publication instead of a scrape.
+       */
+      const PLATE = subject ? 128 : 160;
+      const inset = PLATE * 0.16;
+      const plateX = subject ? PADDING : WIDTH - PADDING - PLATE;
+      const plateY = PADDING - 24;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(plateX, plateY, PLATE, PLATE, PLATE * 0.22);
+      ctx.fillStyle = "#ffffff";
+      ctx.globalAlpha = 0.94;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = "rgba(255,255,255,0.16)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.clip();
+
+      const box = PLATE - inset * 2;
+      const scale = Math.min(box / logo.width, box / logo.height);
       const width = logo.width * scale;
       const height = logo.height * scale;
-      // With a photo on the right, the crest moves left so the two never overlap.
-      const x = subject ? PADDING : WIDTH - PADDING - width;
-      ctx.drawImage(logo, x, PADDING - 20, width, height);
-      logoBottom = PADDING - 20 + height;
+      ctx.drawImage(
+        logo,
+        plateX + (PLATE - width) / 2,
+        plateY + (PLATE - height) / 2,
+        width,
+        height,
+      );
+      ctx.restore();
+
+      logoBottom = plateY + PLATE;
     }
 
     // Headline. Shrink the type until the quote fits rather than truncating it —
