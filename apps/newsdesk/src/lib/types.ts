@@ -38,6 +38,8 @@ export interface FeedItem {
   teamPage?: string;
   /** Nickname of the player this item is about, guessed from the headline. See players.ts. */
   playerName?: string;
+  /** Counter-Strike item named in the headline ("AK-47 | Redline"). See csItems.ts. */
+  itemName?: string;
   /** Higher = post this sooner. See score.ts. */
   score: number;
   /** Why it scored what it scored — shown in the UI so the ranking is inspectable. */

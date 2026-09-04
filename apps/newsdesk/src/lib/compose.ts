@@ -206,6 +206,15 @@ export function planMedia(item: FeedItem): {
     });
   }
 
+  // The item itself, which for a skin post is the entire story. First, because nothing
+  // else in the list is more specific than a picture of the thing being talked about.
+  if (item.itemName) {
+    options.push({
+      url: `/api/item?name=${encodeURIComponent(item.itemName)}`,
+      label: item.itemName,
+    });
+  }
+
   if (item.playerName) {
     options.push({
       url: `/api/photo?name=${encodeURIComponent(item.playerName)}${wiki}`,

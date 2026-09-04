@@ -77,6 +77,14 @@ and the app gains Google sign-in copied from `apps/hub`.
   decided from a headline, so every option is shown, ordered by how specific it is to this
   story, and the person posting picks. Foreign-language screenshots are labelled, not
   removed. `QuoteCard` still refuses to bake one into the generated English card.
+- **Never hide a media option that failed to load.** A labelled "did not load — tap Retry"
+  tile says the option exists and the miss is probably temporary; a vanishing tile just
+  looks like nothing was found. Most misses are Liquipedia's rate limiter, so retrying works.
+- **A skin post shows the skin.** `csItems.ts` resolves "Weapon | Finish" names against a
+  community mirror of Valve's item files and returns the official Steam image. A miss is
+  often correct rather than a bug: community concept art posted to Reddit — "Glock-18 |
+  Floating Camo" — is deliberately not in that dataset, and the right picture is the one
+  Reddit attached.
 - **Player nicknames are guessed, and that is fine.** `players.ts` reads the two shapes CS
   headlines actually use — `nick: "quote"` and `nick <verb>` — rather than trying to hold a
   list of thousands of players whose churn is itself the news. A wrong guess costs nothing:
