@@ -21,6 +21,8 @@ import {
   type Writeup,
 } from "@/lib/compose";
 import CrestTile from "./CrestTile";
+import ResultCard from "./ResultCard";
+import { parseResult } from "@/lib/results";
 
 const SOURCE_TONE: Record<FeedItem["source"], string> = {
   hltv: "text-amber",
@@ -72,6 +74,13 @@ export default function ItemCard({
    */
   const [deadImages, setDeadImages] = useState<string[]>([]);
   const [writeup, setWriteup] = useState<Writeup | null>(null);
+  const [showScoreboard, setShowScoreboard] = useState(false);
+
+  /**
+   * A result we can draw ourselves. Only when both teams resolve to crests we hold — a
+   * scoreboard naming the wrong side is worse than no scoreboard.
+   */
+  const matchResult = parseResult(item.title);
   const [writing, setWriting] = useState(false);
   const [writeError, setWriteError] = useState<string | null>(null);
 
@@ -425,6 +434,24 @@ export default function ItemCard({
         <p className="mt-3 text-sm text-text-muted">
           Nothing found in the article — open it and check before posting.
         </p>
+      )}
+
+      {matchResult && (
+        <button
+          onClick={() => setShowScoreboard(true)}
+          className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-green px-3 text-sm text-green transition-colors duration-150 ease-out"
+        >
+          <IconPhotoPlus size={18} stroke={1.5} />
+          Build scoreboard — {matchResult.winner} vs {matchResult.loser}
+        </button>
+      )}
+
+      {showScoreboard && matchResult && (
+        <ResultCard
+          result={matchResult}
+          handle={handle}
+          onClose={() => setShowScoreboard(false)}
+        />
       )}
 
       <button

@@ -220,15 +220,29 @@ export function planMedia(
     options.push({ url: item.videoUrl, label: "Video from the source", video: true });
   }
 
-  if (item.image) {
-    options.push({
-      url: item.image,
-      label: "From the source",
-      // Kept, not dropped: it is often the best picture in the post, and whether the
-      // Russian text matters depends on the picture — which only a human can see.
-      caution: foreign ? "Contains Russian text" : undefined,
-    });
-  }
+  /**
+   * The aggregator's own graphic, kept but never leading.
+   *
+   * A channel's quote card is watermarked with its handle and logo, so posting it is
+   * republishing their asset under your name — the thing that separates an account people
+   * follow from one they recognise as a mirror. It stays available because it is sometimes
+   * the only picture of a moment, and a human can see when that is worth it; it goes last
+   * and says why.
+   */
+  const branded = item.source === "telegram" && Boolean(item.image);
+  const sourceImage = item.image
+    ? {
+        url: item.image,
+        label: "From the source",
+        caution: branded
+          ? "Carries the channel's watermark"
+          : foreign
+            ? "Contains Russian text"
+            : undefined,
+      }
+    : null;
+
+  if (sourceImage && !branded) options.push(sourceImage);
 
   // The item itself, which for a skin post is the entire story. First, because nothing
   // else in the list is more specific than a picture of the thing being talked about.
@@ -261,6 +275,10 @@ export function planMedia(
     url: item.source === "vlr" ? VALORANT_ARTWORK : CS2_ARTWORK,
     label: item.source === "vlr" ? "VALORANT" : "Counter-Strike 2",
   });
+
+  // Last, behind every original alternative, so it is a deliberate choice rather than
+  // the path of least resistance.
+  if (sourceImage && branded) options.push(sourceImage);
 
   return {
     options,
