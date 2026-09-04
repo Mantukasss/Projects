@@ -106,7 +106,15 @@ async function viaGroq(text: string, key: string): Promise<string | null> {
     body: JSON.stringify({
       model,
       temperature: 0.2,
-      max_tokens: 200,
+      /**
+       * Generous on purpose. Groq's current models are reasoning models, and the budget
+       * covers the reasoning as well as the reply — so a tight cap gets spent thinking and
+       * returns an empty message with finish_reason "length". That is exactly what happened
+       * here: short inputs translated fine and a 370-character one came back blank, which
+       * looked like a broken key rather than a budget.
+       */
+      max_tokens: 1200,
+      reasoning_effort: "low",
       messages: [
         { role: "system", content: SYSTEM },
         { role: "user", content: text },
@@ -117,8 +125,18 @@ async function viaGroq(text: string, key: string): Promise<string | null> {
     lastFailure = `Groq ${res.status}: ${(await res.text()).slice(0, 300)}`;
     return null;
   }
+
   const data = await res.json();
-  return data?.choices?.[0]?.message?.content?.trim() ?? null;
+  const choice = data?.choices?.[0];
+  const content = choice?.message?.content?.trim();
+  if (!content) {
+    // The last silent path. A 200 with no usable content used to return null without
+    // recording anything, so the handler reported the generic message and the real cause
+    // stayed invisible across several deploys.
+    lastFailure = `Groq returned no text (finish_reason=${choice?.finish_reason ?? "unknown"}, model=${model})`;
+    return null;
+  }
+  return content;
 }
 
 async function viaGemini(text: string, key: string): Promise<string | null> {
@@ -128,7 +146,8 @@ async function viaGemini(text: string, key: string): Promise<string | null> {
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: SYSTEM }] },
       contents: [{ role: "user", parts: [{ text }] }],
-      generationConfig: { temperature: 0.2, maxOutputTokens: 200 },
+      // Same reasoning-budget trap as Groq: the cap covers thinking, not just the reply.
+      generationConfig: { temperature: 0.2, maxOutputTokens: 1200 },
     }),
   });
   if (!res.ok) {
@@ -136,7 +155,12 @@ async function viaGemini(text: string, key: string): Promise<string | null> {
     return null;
   }
   const data = await res.json();
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? null;
+  const text_ = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  if (!text_) {
+    lastFailure = `Gemini returned no text (finish=${data?.candidates?.[0]?.finishReason ?? "unknown"})`;
+    return null;
+  }
+  return text_;
 }
 
 export async function POST(request: Request) {
