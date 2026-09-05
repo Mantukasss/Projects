@@ -72,6 +72,12 @@ function useSquare(
       return;
     }
     const img = new Image();
+    /**
+     * Requested with CORS so the canvas stays exportable when the host allows it. HLTV
+     * serves through imgix, which usually does; if it does not, the draw still succeeds and
+     * only the save is blocked — which the button below reports rather than swallowing.
+     */
+    if (/^https?:/i.test(src)) img.crossOrigin = "anonymous";
     img.onload = () => draw(img);
     img.onerror = () => draw(null);
     img.src = src;
@@ -80,15 +86,23 @@ function useSquare(
   return [ref, state];
 }
 
-function save(canvas: HTMLCanvasElement | null, name: string) {
-  if (!canvas) return;
+/**
+ * Returns false when the canvas cannot be exported.
+ *
+ * A cross-origin photo drawn without CORS taints the canvas and makes toDataURL throw. That
+ * used to be swallowed, so tapping Save did nothing at all and looked like a broken app —
+ * the caller now says what to do instead.
+ */
+function save(canvas: HTMLCanvasElement | null, name: string): boolean {
+  if (!canvas) return false;
   try {
     const link = document.createElement("a");
     link.download = `${name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.png`;
     link.href = canvas.toDataURL("image/png");
     link.click();
+    return true;
   } catch {
-    // A cross-origin source tainted the canvas; the tile below still opens the original.
+    return false;
   }
 }
 
@@ -101,8 +115,33 @@ export default function PostImages({
   teamPage: string | null;
   wiki: "counterstrike" | "valorant";
 }) {
+  /**
+   * HLTV's press photo when they have one, Liquipedia's otherwise.
+   *
+   * Asked for per card rather than carried on the feed, because the index lives in one
+   * serverless instance's memory and the instance answering the feed is rarely the one
+   * that built it — the feed reported no photos while the index itself was fine. The
+   * dedicated route waits for the index, so a card's answer is complete.
+   */
+  const [hltvPhoto, setHltvPhoto] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!person) return;
+    let cancelled = false;
+    fetch(`/api/hltv-photo?name=${encodeURIComponent(person)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.url) setHltvPhoto(data.url);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [person]);
+
   const photoSrc = person
-    ? `/api/photo?name=${encodeURIComponent(person)}${wiki === "valorant" ? "&wiki=valorant" : ""}`
+    ? hltvPhoto ??
+      `/api/photo?name=${encodeURIComponent(person)}${wiki === "valorant" ? "&wiki=valorant" : ""}`
     : null;
   const crestSrc = teamPage
     ? `/api/logo?title=${encodeURIComponent(teamPage)}${wiki === "valorant" ? "&wiki=valorant" : ""}`
@@ -111,6 +150,7 @@ export default function PostImages({
   const [photoRef, photoState] = useSquare(photoSrc, "photo", null);
   const [crestRef, crestState] = useSquare(crestSrc, "crest", teamPage ? brandOf(teamPage) : null);
 
+  const [blocked, setBlocked] = useState<Slot | null>(null);
   const showPhoto = Boolean(photoSrc) && photoState !== "empty";
   const showCrest = Boolean(crestSrc) && crestState !== "empty";
   if (!showPhoto && !showCrest) return null;
@@ -125,7 +165,9 @@ export default function PostImages({
       <div className={`grid gap-2 ${showPhoto && showCrest ? "grid-cols-2" : "grid-cols-1"}`}>
         {showPhoto && (
           <button
-            onClick={() => save(photoRef.current, person ?? "photo")}
+            onClick={() => {
+              if (!save(photoRef.current, person ?? "photo")) setBlocked("photo");
+            }}
             className="overflow-hidden rounded-xl border border-border"
           >
             <canvas ref={photoRef} width={SIZE} height={SIZE} className="w-full" />
@@ -137,7 +179,9 @@ export default function PostImages({
         )}
         {showCrest && (
           <button
-            onClick={() => save(crestRef.current, teamPage ?? "crest")}
+            onClick={() => {
+              if (!save(crestRef.current, teamPage ?? "crest")) setBlocked("crest");
+            }}
             className="overflow-hidden rounded-xl border border-border"
           >
             <canvas ref={crestRef} width={SIZE} height={SIZE} className="w-full" />
@@ -148,6 +192,12 @@ export default function PostImages({
           </button>
         )}
       </div>
+      {blocked && (
+        <p className="mt-2 text-xs text-amber">
+          That source will not let the image be saved from the canvas. Press and hold it to
+          save the picture directly instead.
+        </p>
+      )}
     </div>
   );
 }

@@ -42,8 +42,6 @@ export interface FeedItem {
   itemName?: string;
   /** A direct video file, when the source attached one. See telegram.ts. */
   videoUrl?: string;
-  /** HLTV bodyshot for this item's player, when the index has one. See hltvPhotos.ts. */
-  hltvPhoto?: string;
   /** Higher = post this sooner. See score.ts. */
   score: number;
   /** Why it scored what it scored — shown in the UI so the ranking is inspectable. */
