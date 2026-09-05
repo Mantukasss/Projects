@@ -21,6 +21,7 @@ import {
   type Writeup,
 } from "@/lib/compose";
 import CrestTile from "./CrestTile";
+import PostImages from "./PostImages";
 import ResultCard from "./ResultCard";
 import { parseResult } from "@/lib/results";
 
@@ -271,10 +272,18 @@ export default function ItemCard({
         </pre>
       </div>
 
+      {/* The matched pair leads, because it is what the post should actually go out with.
+          Everything below it is an alternative, not the default. */}
+      <PostImages
+        person={writeup?.people?.[0] ?? item.playerName ?? null}
+        teamPage={item.teamPage ?? null}
+        wiki={item.source === "vlr" ? "valorant" : "counterstrike"}
+      />
+
       {draft.images.length > 0 && (
         <div className="mt-3">
           <p className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-text-low">
-            Pick two — tap to open, then save
+            Other options
             {deadImages.length > 0 && (
               <button
                 onClick={retryImages}
