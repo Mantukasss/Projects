@@ -253,16 +253,6 @@ export function planMedia(
     });
   }
 
-  /**
-   * HLTV's photograph first when we have it — it is the press shot the best accounts use,
-   * and it is what makes a post look like it came from someone covering the event rather
-   * than someone assembling one. Cross-origin, so it is a plain tile: tap to open, then
-   * long-press to save. Liquipedia's is the canvas-safe fallback below.
-   */
-  if (item.hltvPhoto && item.playerName) {
-    options.push({ url: item.hltvPhoto, label: `${item.playerName} — HLTV` });
-  }
-
   // Named people next, in the order the write-up found them: the speaker leads, then
   // whoever the quote is about. Falls back to the nickname read off the headline.
   const named = people.length > 0 ? people : item.playerName ? [item.playerName] : [];

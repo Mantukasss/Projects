@@ -12,7 +12,6 @@ import { teamInText } from "@/lib/teams";
 import { playerInText } from "@/lib/players";
 import { itemNameIn } from "@/lib/sources/csItems";
 import { correctNames } from "@/lib/glossary";
-import { lookupHltvPhoto } from "@/lib/sources/hltvPhotos";
 import { fetchVlr } from "@/lib/sources/vlr";
 import { staleOnError } from "@/lib/sources/staleCache";
 
@@ -88,17 +87,6 @@ export async function GET(request: Request) {
       ...(itemName ? { itemName } : {}),
     };
   });
-
-  /**
-   * HLTV's own photograph of the player. Non-blocking by design: a cold instance starts
-   * building the index and this refresh simply goes without, rather than the whole feed
-   * waiting on a dozen article fetches.
-   */
-  for (const item of annotated) {
-    if (!item.playerName) continue;
-    const photo = lookupHltvPhoto(item.playerName);
-    if (photo) item.hltvPhoto = photo;
-  }
 
   const scored = dedupe(annotated.map(scoreItem));
 
