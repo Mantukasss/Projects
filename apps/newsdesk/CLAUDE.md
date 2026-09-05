@@ -99,6 +99,15 @@ and the app gains Google sign-in copied from `apps/hub`.
   reading only the photo class returned nothing at all for those; and the `<video src>` is a
   direct mp4 that can be attached as footage. "What are BC.Game players doing at the
   bootcamp" had neither until both were read.
+- **HLTV bodyshots are harvested from articles, because there is no lookup.** Their player
+  pages and search answer 403; their articles answer 200, and every article embeds a hover
+  card per player mentioned, carrying that player's photo. The nickname comes from the
+  image's alt text — "Justinas 'jL' Lekavicius" — so the pairing is exact rather than
+  inferred. Coverage is whoever has been in the news recently, which is close to whoever you
+  are posting about; anyone missing falls back to Liquipedia.
+- **HLTV photo URLs cannot be proxied or drawn on a canvas.** The CDN answers a browser and
+  refuses a server, so `/api/hltv-photo` returns the URL and the page loads it directly.
+  That makes it cross-origin, hence a plain tile rather than part of the matched square.
 - **The pair must be the same square.** X lays two attachments side by side and crops them
   to a shared height, so a tall portrait beside a wide capsule becomes two mismatched
   slivers. `PostImages` renders both onto a 1080 square — cover-cropped and biased upward

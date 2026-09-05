@@ -12,6 +12,7 @@ import { teamInText } from "@/lib/teams";
 import { playerInText } from "@/lib/players";
 import { itemNameIn } from "@/lib/sources/csItems";
 import { correctNames } from "@/lib/glossary";
+import { fetchHltvPhoto } from "@/lib/sources/hltvPhotos";
 import { fetchVlr } from "@/lib/sources/vlr";
 import { staleOnError } from "@/lib/sources/staleCache";
 
@@ -87,6 +88,18 @@ export async function GET(request: Request) {
       ...(itemName ? { itemName } : {}),
     };
   });
+
+  /**
+   * HLTV's own photograph of the player, when their index has one. Looked up from a cached
+   * map rather than per-request, so this costs nothing after the first call.
+   */
+  await Promise.all(
+    annotated.map(async (item) => {
+      if (!item.playerName) return;
+      const photo = await fetchHltvPhoto(item.playerName);
+      if (photo) item.hltvPhoto = photo;
+    }),
+  );
 
   const scored = dedupe(annotated.map(scoreItem));
 
