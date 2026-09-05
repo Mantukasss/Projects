@@ -82,6 +82,27 @@ async function loadIndex(): Promise<Map<string, string>> {
   }
 }
 
+/**
+ * Looks up a photo WITHOUT waiting for the index to exist.
+ *
+ * Building it means a dozen sequential article fetches, and doing that inside a feed
+ * request means a cold instance spends thirty seconds on it and returns no photos at all —
+ * which is exactly what happened in production while the index itself was fine. So a cold
+ * lookup starts the build and answers null; the next refresh, seconds later, has it.
+ *
+ * Vercel's Data Cache is shared across instances and the article fetches carry revalidate
+ * hints, so a rebuild on a new instance is cheap after the first one anywhere.
+ */
+export function lookupHltvPhoto(nickname: string): string | null {
+  if (index && Date.now() - index.at < TTL_MS) {
+    return index.byNick.get(nickname.toLowerCase()) ?? null;
+  }
+  // Fire and forget: the failure path is "no photo this time", never a slow response.
+  void loadIndex().catch(() => null);
+  return null;
+}
+
+/** Waits for the index. Only for the dedicated route, never for the feed. */
 export async function fetchHltvPhoto(nickname: string): Promise<string | null> {
   try {
     return (await loadIndex()).get(nickname.toLowerCase()) ?? null;
