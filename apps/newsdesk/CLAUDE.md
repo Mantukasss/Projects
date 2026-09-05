@@ -99,6 +99,13 @@ and the app gains Google sign-in copied from `apps/hub`.
   reading only the photo class returned nothing at all for those; and the `<video src>` is a
   direct mp4 that can be attached as footage. "What are BC.Game players doing at the
   bootcamp" had neither until both were read.
+- **The pair must be the same square.** X lays two attachments side by side and crops them
+  to a shared height, so a tall portrait beside a wide capsule becomes two mismatched
+  slivers. `PostImages` renders both onto a 1080 square — cover-cropped and biased upward
+  for a face, contained with a wide margin for a crest — so the pair always sits flush.
+- **Never render a slot with nothing in it.** An empty coloured square looks like a finished
+  image, so it gets attached and the post goes out with a blank tile. `PostImages` hides a
+  slot whose source did not load and drops to a single column.
 - **`planMedia` offers, it does not choose.** An earlier version picked two images and
   discarded the rest — including the source screenshot on every Russian item — which left a
   run of posts all wearing the same game capsule. Which picture tells the story cannot be
@@ -181,6 +188,14 @@ models and the budget covers the thinking, and every failure records why.
 Newest first by default; `?sort=score` returns the ranked order and the UI toggles it.
 Score decides what is worth posting, time decides what is new, and ranking by score buries
 the thing that just landed behind something better from three hours ago.
+
+### X is readable, for individual posts
+`cdn.syndication.twimg.com/tweet-result?id=<id>&token=<t>` returns a public post's full
+text and media URLs, free and unauthenticated. The token is derived from the id:
+`((id / 1e15) * Math.PI).toString(36)` with zeros and the dot stripped. WebFetch gets 402
+from x.com and the API has no free tier, which led to this being written off twice —
+neither fact rules out the syndication endpoint. Profile TIMELINES are not enumerable
+this way, so it reads posts you already have ids for; it does not discover them.
 
 ### Media
 Every post carries an image; the card blocks copying until one exists. An item that names a
