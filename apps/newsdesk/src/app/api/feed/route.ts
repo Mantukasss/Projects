@@ -11,6 +11,7 @@ import { markIncomplete } from "@/lib/incomplete";
 import { teamInText } from "@/lib/teams";
 import { playerInText } from "@/lib/players";
 import { itemNameIn } from "@/lib/sources/csItems";
+import { correctNames } from "@/lib/glossary";
 import { fetchVlr } from "@/lib/sources/vlr";
 import { staleOnError } from "@/lib/sources/staleCache";
 
@@ -66,11 +67,17 @@ export async function GET(request: Request) {
   const annotated = items.map((item) => {
     const flagged = markIncomplete(item);
     const scooped = alreadyCovered(flagged.title, flagged.summary, rivals);
-    // A named team means a badge is available, whatever the source. Liquipedia items are
-    // already about a team page, so they use their own title.
-    const teamPage =
-      item.source === "liquipedia" ? item.title : teamInText(`${item.title} ${item.summary}`);
-    const playerName = playerInText(item.title);
+    /**
+     * A named team means a badge is available, whatever the source.
+     *
+     * The glossary is applied FIRST because team names are the thing it fixes most: a
+     * Russian post says Соколов, the matcher looks for "Falcons", and without the swap a
+     * post plainly about a team resolved to no team at all — leaving it with nothing but a
+     * game capsule for company. Liquipedia items are already about a team page.
+     */
+    const searchable = correctNames(`${item.title} ${item.summary}`);
+    const teamPage = item.source === "liquipedia" ? item.title : teamInText(searchable);
+    const playerName = playerInText(correctNames(item.title));
     const itemName = itemNameIn(item.title);
     return {
       ...flagged,
