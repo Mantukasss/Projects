@@ -126,9 +126,12 @@ export default function PostImages({
   const [hltvPhoto, setHltvPhoto] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!person) return;
+    // A team is a subject too: a post about MOUZ can carry a photograph from an event they
+    // were at, which beats their crest twice over.
+    const subject = person ?? teamPage;
+    if (!subject) return;
     let cancelled = false;
-    fetch(`/api/hltv-photo?name=${encodeURIComponent(person)}`)
+    fetch(`/api/hltv-photo?name=${encodeURIComponent(subject)}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!cancelled && data?.url) setHltvPhoto(data.url);
@@ -137,12 +140,13 @@ export default function PostImages({
     return () => {
       cancelled = true;
     };
-  }, [person]);
+  }, [person, teamPage]);
 
-  const photoSrc = person
-    ? hltvPhoto ??
-      `/api/photo?name=${encodeURIComponent(person)}${wiki === "valorant" ? "&wiki=valorant" : ""}`
-    : null;
+  const photoSrc =
+    hltvPhoto ??
+    (person
+      ? `/api/photo?name=${encodeURIComponent(person)}${wiki === "valorant" ? "&wiki=valorant" : ""}`
+      : null);
   const crestSrc = teamPage
     ? `/api/logo?title=${encodeURIComponent(teamPage)}${wiki === "valorant" ? "&wiki=valorant" : ""}`
     : null;

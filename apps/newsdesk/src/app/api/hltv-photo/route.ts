@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchHltvPhoto, indexedNicknames } from "@/lib/sources/hltvPhotos";
+import { fetchHltvPhoto, indexedSubjects } from "@/lib/sources/hltvPhotos";
 
 export const runtime = "nodejs";
 
@@ -21,8 +21,11 @@ export async function GET(request: Request) {
   const name = new URL(request.url).searchParams.get("name");
 
   if (!name) {
-    const nicknames = await indexedNicknames();
-    return NextResponse.json({ count: nicknames.length, nicknames: nicknames.slice(0, 100) });
+    const { editorial, bodyshot } = await indexedSubjects();
+    return NextResponse.json({
+      editorial: { count: editorial.length, subjects: editorial.slice(0, 80) },
+      bodyshot: { count: bodyshot.length, subjects: bodyshot.slice(0, 80) },
+    });
   }
 
   const url = await fetchHltvPhoto(name);
