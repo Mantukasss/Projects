@@ -229,20 +229,18 @@ export function planMedia(
    * the only picture of a moment, and a human can see when that is worth it; it goes last
    * and says why.
    */
-  const branded = item.source === "telegram" && Boolean(item.image);
-  const sourceImage = item.image
-    ? {
-        url: item.image,
-        label: "From the source",
-        caution: branded
-          ? "Carries the channel's watermark"
-          : foreign
-            ? "Contains Russian text"
-            : undefined,
-      }
-    : null;
+  /**
+   * A picture of Russian text is never offered, at any position.
+   *
+   * It was kept as a last resort on the reasoning that it is sometimes the only picture of
+   * a moment. It is not: it is a graphic the audience cannot read, wearing another outlet's
+   * watermark, and it will not be posted — so listing it only costs a slot and a decision.
+   * The story still gets used; it is retold in English with our own pictures.
+   */
+  const unusable = foreign || item.source === "telegram";
+  const sourceImage = !unusable && item.image ? { url: item.image, label: "From the source" } : null;
 
-  if (sourceImage && !branded) options.push(sourceImage);
+  if (sourceImage) options.push(sourceImage);
 
   // The item itself, which for a skin post is the entire story. First, because nothing
   // else in the list is more specific than a picture of the thing being talked about.
@@ -275,10 +273,6 @@ export function planMedia(
     url: item.source === "vlr" ? VALORANT_ARTWORK : CS2_ARTWORK,
     label: item.source === "vlr" ? "VALORANT" : "Counter-Strike 2",
   });
-
-  // Last, behind every original alternative, so it is a deliberate choice rather than
-  // the path of least resistance.
-  if (sourceImage && branded) options.push(sourceImage);
 
   return {
     options,

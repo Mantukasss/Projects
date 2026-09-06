@@ -8,9 +8,18 @@ import { USER_AGENT, decodeEntities } from "./fetchXml";
  * So the index is built from what the articles happen to contain — every piece embeds a
  * hover card for each player it mentions, and that card carries the bodyshot.
  *
- * The pairing is exact rather than guessed. The image's alt text is the player's full name
- * with the nickname in single quotes — "Justinas 'jL' Lekavicius" — so the nickname comes
- * out of the markup rather than being inferred from a filename.
+ * TWO kinds of picture come out of an article, and they are not interchangeable:
+ *
+ *  - The EDITORIAL photo, the one at the top of the piece. HLTV serves it up to 1600px
+ *    wide, it is real event photography, and it is what a post should carry. It is keyed
+ *    to every player and team the article links, because an article about apEX leads with
+ *    a picture from the event apEX was at.
+ *  - The BODYSHOT, the cutout in each player's hover card. It is only 200-400px, which is
+ *    soft on a 1080 square, but it is matched to a player by name with no ambiguity.
+ *
+ * So the editorial photo is preferred and the bodyshot is the fallback. The bodyshot's
+ * pairing is exact rather than guessed: the image's alt text is the player's full name with
+ * the nickname in single quotes, "Justinas 'jL' Lekavicius".
  *
  * Coverage is therefore whoever has been in the news lately, which is close to whoever you
  * are posting about. Anyone missing falls back to Liquipedia.
@@ -24,8 +33,15 @@ const TTL_MS = 6 * 60 * 60 * 1000;
 /** How many articles to mine. Each is a request, and the newest carry the current names. */
 const ARTICLE_LIMIT = 12;
 
-let index: { byNick: Map<string, string>; at: number } | null = null;
-let inFlight: Promise<Map<string, string>> | null = null;
+export interface PhotoIndex {
+  /** Large editorial photography, keyed by any player or team the article was about. */
+  editorial: Map<string, string>;
+  /** Small cutouts, keyed by exact nickname. */
+  bodyshot: Map<string, string>;
+}
+
+let index: { data: PhotoIndex; at: number } | null = null;
+let inFlight: Promise<PhotoIndex> | null = null;
 
 async function fetchText(url: string, revalidate: number): Promise<string> {
   const res = await fetch(url, {
@@ -40,39 +56,82 @@ async function fetchText(url: string, revalidate: number): Promise<string> {
 const BODYSHOT =
   /<img[^>]+alt="([^"]*'([^']+)'[^"]*)"[^>]+src="(https:\/\/img-cdn\.hltv\.org\/playerbodyshot\/[^"]+)"/g;
 
-function harvest(html: string, into: Map<string, string>): void {
+const widthOf = (value: string) => Number(value.match(/[?&]w=(\d+)/)?.[1] ?? 0);
+
+/**
+ * The article's own photograph, at the largest width offered.
+ *
+ * AVIF variants are skipped. They are smaller on the wire but not every tool that will
+ * touch these files reads them, and a post image that fails to open is worth less than a
+ * larger download.
+ */
+function editorialPhoto(html: string): string | null {
+  const candidates = [...html.matchAll(/https:\/\/img-cdn\.hltv\.org\/gallerypicture\/[^"'\s]+/g)]
+    .map((m) => decodeEntities(m[0]))
+    .filter((url) => !url.includes("fm=avif"));
+  if (candidates.length === 0) return null;
+  return candidates.reduce((best, url) => (widthOf(url) > widthOf(best) ? url : best));
+}
+
+function harvest(html: string, into: PhotoIndex): void {
   for (const match of html.matchAll(BODYSHOT)) {
     const nick = match[2].trim();
     const src = decodeEntities(match[3]);
     if (!nick) continue;
-    // Prefer the widest variant seen: articles embed the same shot at several sizes.
-    const existing = into.get(nick.toLowerCase());
-    const width = (value: string) => Number(value.match(/[?&]w=(\d+)/)?.[1] ?? 0);
-    if (!existing || width(src) > width(existing)) into.set(nick.toLowerCase(), src);
+    const existing = into.bodyshot.get(nick.toLowerCase());
+    if (!existing || widthOf(src) > widthOf(existing)) into.bodyshot.set(nick.toLowerCase(), src);
   }
+
+  const photo = editorialPhoto(html);
+  if (!photo) return;
+
+  /**
+   * Key the photograph to who the article is ABOUT, not everyone it mentions.
+   *
+   * Keying to every link meant one match report attached its photo to all ten players and
+   * both teams in it — so apEX, MOUZ and Spirit all resolved to the same picture, and a
+   * Spirit story would have gone out wearing a photo from a MOUZ match. Whoever is in the
+   * headline is the subject; everyone else is context.
+   *
+   * Where a headline names nobody we recognise, the links are used after all: a slightly
+   * off photograph of the right event still beats no photograph.
+   */
+  const linked = new Set(
+    [
+      ...html.matchAll(/\/player\/\d+\/([a-z0-9_-]+)/g),
+      ...html.matchAll(/\/team\/\d+\/([a-z0-9_-]+)/g),
+    ].map((m) => m[1].toLowerCase()),
+  );
+
+  const title = (html.match(/<title>([^<]*)<\/title>/)?.[1] ?? "").toLowerCase();
+  const headlineSubjects = [...linked].filter((subject) => title.includes(subject));
+
+  const targets = headlineSubjects.length > 0 ? headlineSubjects : [...linked];
+  for (const subject of targets) into.editorial.set(subject, photo);
 }
 
-async function build(): Promise<Map<string, string>> {
+async function build(): Promise<PhotoIndex> {
   const rss = await fetchText(RSS, 900);
   const links = [...rss.matchAll(/<link>(https:\/\/www\.hltv\.org\/news\/[^<]+)<\/link>/g)]
     .map((m) => m[1])
     .slice(0, ARTICLE_LIMIT);
 
-  const byNick = new Map<string, string>();
-  // Sequential on purpose: eight parallel requests to one site is how you get rate limited.
-  for (const link of links) {
+  const data: PhotoIndex = { editorial: new Map(), bodyshot: new Map() };
+  // Sequential on purpose: a dozen parallel requests to one site is how you get rate limited.
+  // Oldest first, so the newest article's photograph is the one that survives.
+  for (const link of [...links].reverse()) {
     try {
-      harvest(await fetchText(link, 3600), byNick);
+      harvest(await fetchText(link, 3600), data);
     } catch {
-      // One unreachable article should not lose the other seven.
+      // One unreachable article should not lose the rest.
     }
   }
-  index = { byNick, at: Date.now() };
-  return byNick;
+  index = { data, at: Date.now() };
+  return data;
 }
 
-async function loadIndex(): Promise<Map<string, string>> {
-  if (index && Date.now() - index.at < TTL_MS) return index.byNick;
+async function loadIndex(): Promise<PhotoIndex> {
+  if (index && Date.now() - index.at < TTL_MS) return index.data;
   if (inFlight) return inFlight;
   inFlight = build();
   try {
@@ -93,29 +152,28 @@ async function loadIndex(): Promise<Map<string, string>> {
  * Vercel's Data Cache is shared across instances and the article fetches carry revalidate
  * hints, so a rebuild on a new instance is cheap after the first one anywhere.
  */
-export function lookupHltvPhoto(nickname: string): string | null {
-  if (index && Date.now() - index.at < TTL_MS) {
-    return index.byNick.get(nickname.toLowerCase()) ?? null;
-  }
-  // Fire and forget: the failure path is "no photo this time", never a slow response.
-  void loadIndex().catch(() => null);
-  return null;
-}
-
-/** Waits for the index. Only for the dedicated route, never for the feed. */
-export async function fetchHltvPhoto(nickname: string): Promise<string | null> {
+/**
+ * The best HLTV picture for a subject, which may be a player nickname or a team.
+ *
+ * Editorial first: it is event photography at up to 1600px, which is what a post wants.
+ * The bodyshot cutout is the fallback for a player who has not led an article recently.
+ */
+export async function fetchHltvPhoto(subject: string): Promise<string | null> {
   try {
-    return (await loadIndex()).get(nickname.toLowerCase()) ?? null;
+    const data = await loadIndex();
+    const key = subject.toLowerCase();
+    return data.editorial.get(key) ?? data.bodyshot.get(key) ?? null;
   } catch {
     return null;
   }
 }
 
-/** Every nickname currently indexed — useful for seeing what coverage looks like. */
-export async function indexedNicknames(): Promise<string[]> {
+/** What the index currently holds — the quickest way to see coverage. */
+export async function indexedSubjects(): Promise<{ editorial: string[]; bodyshot: string[] }> {
   try {
-    return [...(await loadIndex()).keys()];
+    const data = await loadIndex();
+    return { editorial: [...data.editorial.keys()], bodyshot: [...data.bodyshot.keys()] };
   } catch {
-    return [];
+    return { editorial: [], bodyshot: [] };
   }
 }

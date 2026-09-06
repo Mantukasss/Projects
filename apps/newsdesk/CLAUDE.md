@@ -99,6 +99,17 @@ and the app gains Google sign-in copied from `apps/hub`.
   reading only the photo class returned nothing at all for those; and the `<video src>` is a
   direct mp4 that can be attached as footage. "What are BC.Game players doing at the
   bootcamp" had neither until both were read.
+- **Two kinds of HLTV picture, and they are not interchangeable.** The EDITORIAL photo at
+  the top of an article is real event photography served up to 1600px — that is what a post
+  carries. The BODYSHOT cutout in a player hover card is 200-400px, soft on a 1080 square,
+  and only the fallback. Editorial is keyed to whoever the HEADLINE names: keying to every
+  link meant one match report attached its photo to all ten players in it, so apEX, MOUZ and
+  Spirit all resolved to the same picture.
+- **A Russian source image is never offered, at any position.** It was kept last on the
+  reasoning that it is sometimes the only picture of a moment; it is not. It is a graphic
+  the audience cannot read wearing another outlet's watermark, and it will not be posted, so
+  listing it only costs a slot and a decision. The story is still used — retold in English
+  with our own pictures.
 - **HLTV bodyshots are harvested from articles, because there is no lookup.** Their player
   pages and search answer 403; their articles answer 200, and every article embeds a hover
   card per player mentioned, carrying that player's photo. The nickname comes from the
