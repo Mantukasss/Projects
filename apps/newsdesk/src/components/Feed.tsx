@@ -7,8 +7,8 @@ import { SOURCE_NAME } from "@/lib/compose";
 import ItemCard from "./ItemCard";
 import QuoteCard from "./QuoteCard";
 
-const ALL_SOURCES: SourceId[] = ["hltv", "liquipedia", "steam", "telegram", "reddit", "vlr"];
-const DEFAULT_SOURCES: SourceId[] = ["hltv", "liquipedia", "steam", "telegram", "reddit"];
+const ALL_SOURCES: SourceId[] = ["hltv", "liquipedia", "steam", "telegram", "twitch", "reddit", "vlr"];
+const DEFAULT_SOURCES: SourceId[] = ["hltv", "liquipedia", "steam", "telegram", "twitch", "reddit"];
 
 const POSTED_KEY = "newsdesk.posted";
 const HANDLE_KEY = "newsdesk.handle";

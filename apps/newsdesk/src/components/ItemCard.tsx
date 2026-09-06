@@ -31,6 +31,7 @@ const SOURCE_TONE: Record<FeedItem["source"], string> = {
   reddit: "text-coral",
   steam: "text-blue",
   telegram: "text-teal",
+  twitch: "text-purple",
   vlr: "text-green",
 };
 

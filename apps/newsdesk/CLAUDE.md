@@ -252,6 +252,15 @@ Vercel project `mantas-newsdesk` exists (Root Directory `apps/newsdesk`, product
 set `git.deploymentEnabled: false` — the template ships that flag on, which silently blocks
 every git-triggered build, so it was removed here to let pushes deploy.
 
+### Twitch
+`twitch.ts` asks two different questions. The TOURNAMENT channels (blastpremier, esl_csgo,
+pgl_esports, blasttv) are where post-match interviews get clipped — that is the quote source
+HLTV cannot match, since a broadcast produces an interview after every series and HLTV writes
+up about two a day. Separately, the hardest-clipped Counter-Strike clips game-wide surface a
+moment while it is happening. Needs `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`; without
+them the source raises and the feed carries on. The app token is cached — Twitch's last
+about 60 days, so re-requesting one per feed refresh would be pointless traffic.
+
 ### Where the quotes actually come from
 The accounts with quotes HLTV does not have are taking them from BROADCASTS, not articles —
 a post crediting `@BLASTPremier` for a quote means the post-match interview aired on the
@@ -262,7 +271,7 @@ one meaningful source still missing.
 
 ## Next
 - Deploy: run `node apps/hub/scripts/setup-vercel-project.mjs --repo projects --name mantas-newsdesk --slug newsdesk`, then fix the real URL in `apps/hub/config/apps.json`.
-- Twitch clips for broadcast interviews. Needs a free Twitch app (client id + secret) in the Vercel project; it is the source behind the quotes this app cannot currently reach.
+- Add `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET` to the Vercel project to turn the Twitch source on. The code is wired and reports "Twitch keys not configured" until they exist.
 - Translate and classify the Russian Telegram posts. Needs a free `GROQ_API_KEY` or `GEMINI_API_KEY` added to the Vercel project — neither is set today, which is why `looksLikeNews` is a regex rather than comprehension.
 - Add the streamer layer: Twitch Helix for live/offline transitions and clip-view velocity, which finds a viral moment before it is viral on X. Needs a free Twitch app (client id + secret).
 - Add a Polymarket detector: `https://data-api.polymarket.com` is public and unauthenticated, so large position opens by top-ranked wallets are free to compute and nobody is posting them in a clean format.
