@@ -16,6 +16,11 @@ import type { FeedItem } from "../types";
  *
  * Needs a free Twitch application: TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET. Without them
  * the source raises and the feed simply carries on without it.
+ *
+ * A note on channel logins: Twitch keys everything by numeric id, and a login that no longer
+ * exists is silently absent from the /users response rather than an error. So a channel that
+ * gets renamed disappears from this feed quietly — if interviews stop appearing, check the
+ * logins below before suspecting the clips endpoint.
  */
 const TOKEN_URL = "https://id.twitch.tv/oauth2/token";
 const HELIX = "https://api.twitch.tv/helix";
