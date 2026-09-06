@@ -252,8 +252,17 @@ Vercel project `mantas-newsdesk` exists (Root Directory `apps/newsdesk`, product
 set `git.deploymentEnabled: false` — the template ships that flag on, which silently blocks
 every git-triggered build, so it was removed here to let pushes deploy.
 
+### Where the quotes actually come from
+The accounts with quotes HLTV does not have are taking them from BROADCASTS, not articles —
+a post crediting `@BLASTPremier` for a quote means the post-match interview aired on the
+stream, and caster opinions come from streams and podcasts. Tournament YouTube channels do
+NOT carry these: BLAST and ESL upload highlights, and PGL's channel is Dota (tested, all
+three). The route is Twitch clips, which needs a free Twitch app (client id + secret) — the
+one meaningful source still missing.
+
 ## Next
 - Deploy: run `node apps/hub/scripts/setup-vercel-project.mjs --repo projects --name mantas-newsdesk --slug newsdesk`, then fix the real URL in `apps/hub/config/apps.json`.
+- Twitch clips for broadcast interviews. Needs a free Twitch app (client id + secret) in the Vercel project; it is the source behind the quotes this app cannot currently reach.
 - Translate and classify the Russian Telegram posts. Needs a free `GROQ_API_KEY` or `GEMINI_API_KEY` added to the Vercel project — neither is set today, which is why `looksLikeNews` is a regex rather than comprehension.
 - Add the streamer layer: Twitch Helix for live/offline transitions and clip-view velocity, which finds a viral moment before it is viral on X. Needs a free Twitch app (client id + secret).
 - Add a Polymarket detector: `https://data-api.polymarket.com` is public and unauthenticated, so large position opens by top-ranked wallets are free to compute and nobody is posting them in a clean format.
