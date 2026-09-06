@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { brandOf } from "@/lib/teams";
+import { photoSearchLinks } from "@/lib/photoSearch";
 
 /**
  * The pair of images a post goes out with: the person on the left, their team on the right,
@@ -196,6 +197,30 @@ export default function PostImages({
           </button>
         )}
       </div>
+      {/* No photograph resolved. Rather than leaving the post imageless, point at where one
+          is, HLTV first because that is the look being matched. */}
+      {!showPhoto && (person || teamPage) && (
+        <div className="mt-2 rounded-md border border-dashed border-border p-2">
+          <p className="mb-1 text-xs text-text-muted">
+            No photo found for {person ?? teamPage}. Grab one:
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {photoSearchLinks((person ?? teamPage) as string, wiki).map((link) => (
+              <a
+                key={link.label}
+                href={link.url}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="rounded-md border border-border px-2 py-1 text-xs text-blue"
+                title={link.note}
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
       {blocked && (
         <p className="mt-2 text-xs text-amber">
           That source will not let the image be saved from the canvas. Press and hold it to
