@@ -11,6 +11,7 @@ import type { FeedItem } from "./types";
 /** How much we trust the source to be both accurate and citable. */
 const SOURCE_WEIGHT: Record<FeedItem["source"], number> = {
   steam: 34, // Valve announcing its own game is as authoritative as it gets
+  twitch: 36, // a broadcast quote exists nowhere else until someone writes it up
   telegram: 32, // where the scene talks first, and where a Valve build change shows up
   hltv: 30,
   liquipedia: 26, // fast and often first, but unverified

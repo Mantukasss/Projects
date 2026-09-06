@@ -6,6 +6,7 @@ import { fetchLiquipedia } from "@/lib/sources/liquipedia";
 import { fetchReddit } from "@/lib/sources/reddit";
 import { fetchSteam } from "@/lib/sources/steam";
 import { fetchTelegram } from "@/lib/sources/telegram";
+import { fetchTwitch } from "@/lib/sources/twitch";
 import { alreadyCovered, fetchRivalPosts } from "@/lib/sources/rivals";
 import { markIncomplete } from "@/lib/incomplete";
 import { teamInText } from "@/lib/teams";
@@ -24,13 +25,14 @@ const SOURCES = {
   reddit: fetchReddit,
   steam: fetchSteam,
   telegram: fetchTelegram,
+  twitch: fetchTwitch,
   vlr: fetchVlr,
 } as const;
 
 type SourceKey = keyof typeof SOURCES;
 
 /** VLR is the only source off by default — one game per account beats two (see vlr.ts). */
-const DEFAULT_SOURCES: SourceKey[] = ["hltv", "liquipedia", "steam", "telegram", "reddit"];
+const DEFAULT_SOURCES: SourceKey[] = ["hltv", "liquipedia", "steam", "telegram", "twitch", "reddit"];
 
 export async function GET(request: Request) {
   const requested = new URL(request.url).searchParams.get("sources");
