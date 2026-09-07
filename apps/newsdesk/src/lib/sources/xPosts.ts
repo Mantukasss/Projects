@@ -53,6 +53,16 @@ interface Account {
    * relevance while a dedicated CS account's are taken whole. Filtering everything would
    * throw away roster news that happens not to say the word "CS".
    */
+  /**
+   * True when the account's posts are taken whole rather than tested for CS relevance.
+   *
+   * EVERY first-party account is true, including orgs that field LoL and Valorant teams, and
+   * that is not an oversight. FUT announced Krabeni's renewal as "The Mastermind stays. We
+   * are thrilled to announce that we have renewed Krabeni's contract." — no game named, no
+   * team named, no word in the CS vocabulary. The relevance test would have thrown away the
+   * exact post this whole exercise is about. An org's own announcement is the one thing that
+   * must never be filtered out; OTHER_GAME and PROMO remove the noise instead.
+   */
   csOnly: boolean;
   /**
    * The Liquipedia page for the org that owns this account, where it is an org account.
@@ -107,6 +117,26 @@ const OTHER_GAME =
 const DEFINITELY_CS =
   /\b(cs2|csgo|cs|counter-?strike|hltv|awp(er)?|ak-?47|m4a1|deagle|vertigo|mirage|inferno|nuke|ancient|dust2|anubis|overpass|train|s1mple|donk|zywoo|m0nesy|niko|ropz|ap[eE]X|torzsi|xertion|frozen|broky|karrigan|magixx|sh1ro|zont1x|molodoy|jame|fallen|device|blast premier|iem katowice|iem cologne)\b/i;
 
+/**
+ * Merchandise, sponsors and giveaways — the price of reading org accounts whole.
+ *
+ * Taking every first-party post is the right call (see Account.csOnly), and this is what it
+ * costs: "BUY THE COOLEST OF THEM ALL, BUY THE FUT SPRAY", a gaming-chair ad, a spray sale.
+ * None of it is news and all of it would take a slot in a feed capped at sixty.
+ *
+ * Kept deliberately narrow and anchored to COMMERCIAL language rather than to topics. "Sign"
+ * and "deal" are not here on purpose — "we have signed", "a new deal" are exactly how a
+ * transfer is announced, and dropping those to remove an ad would be trading the thing for
+ * the noise around it.
+ *
+ * KNOWN MISS, accepted: a product post carrying no commercial verb — "Meet the Secretlab
+ * TITAN Evo, designed to provide ergonomic support" — reads as an ordinary post and gets
+ * through. Catching it needs either a list of sponsor brands, which never ends, or words
+ * broad enough to swallow announcements. One ad in the feed is the cheaper mistake.
+ */
+const PROMO =
+  /\b(buy|shop|sale|discount|promo code|use code|sponsor(ed|ship)?|presented by|giveaway|merch|drop(s|ping) (now|soon))\b|#ad\b/i;
+
 const CS_RELEVANT =
   /\b(cs2|csgo|counter-?strike|hltv|blast|iem|esl|pgl|major|awp(er)?|igl|lan|vertigo|mirage|inferno|nuke|ancient|dust2|anubis|train|overpass|roster|stand-?in|vitality|navi|natus vincere|spirit|falcons|mouz|g2|furia|faze|astralis|liquid|heroic|mongolz|aurora|fnatic|nip|ninjas in pyjamas|virtus|betboom|3dmax|gamerlegion|eternal fire|pain gaming|imperial|legacy|tyloo|complexity|nrg|m80|wildcard|s1mple|donk|zywoo|m0nesy|niko|ropz|apex|torzsi|xertion|frozen|broky|karrigan|magixx|sh1ro|zont1x|molodoy|jame|jl|fallen)\b/i;
 
@@ -141,26 +171,39 @@ const ACCOUNTS: Account[] = [
   { handle: "G2esports", label: "@G2esports", note: "first-party team news", csOnly: true, team: "G2 Esports", firstParty: true },
   { handle: "FURIA", label: "@FURIA", note: "first-party team news", csOnly: true, team: "FURIA Esports", firstParty: true },
   { handle: "paiNGamingBR", label: "@paiNGamingBR", note: "first-party team news", csOnly: true, team: "paiN Gaming", firstParty: true },
-  { handle: "FalconsEsport", label: "@FalconsEsport", note: "first-party team news", csOnly: false, team: "Team Falcons", firstParty: true },
+  { handle: "FalconsEsport", label: "@FalconsEsport", note: "first-party team news", csOnly: true, team: "Team Falcons", firstParty: true },
   { handle: "mousesports", label: "@mousesports", note: "first-party team news", csOnly: true, team: "MOUZ", firstParty: true },
   { handle: "TeamLiquidCS", label: "@TeamLiquidCS", note: "first-party team news", csOnly: true, team: "Team Liquid", firstParty: true },
   { handle: "astralisgg", label: "@astralisgg", note: "first-party team news", csOnly: true, team: "Astralis", firstParty: true },
   { handle: "heroicgg", label: "@heroicgg", note: "first-party team news", csOnly: true, team: "Heroic", firstParty: true },
-  { handle: "Cloud9", label: "@Cloud9", note: "first-party team news", csOnly: false, team: "Cloud9", firstParty: true },
-  { handle: "complexity", label: "@complexity", note: "first-party team news", csOnly: false, team: "Complexity Gaming", firstParty: true },
-  { handle: "BIGCLANgg", label: "@BIGCLANgg", note: "first-party team news", csOnly: false, team: "BIG", firstParty: true },
-  { handle: "imperialesports", label: "@imperialesports", note: "first-party team news", csOnly: false, team: "Imperial Esports", firstParty: true },
-  { handle: "9zTeam", label: "@9zTeam", note: "first-party team news", csOnly: false, team: "9z Team", firstParty: true },
-  { handle: "BetBoomTeam", label: "@BetBoomTeam", note: "first-party team news", csOnly: false, team: "BetBoom Team", firstParty: true },
-  { handle: "virtuspro", label: "@virtuspro", note: "first-party team news", csOnly: false, team: "Virtus.pro", firstParty: true },
+  { handle: "Cloud9", label: "@Cloud9", note: "first-party team news", csOnly: true, team: "Cloud9", firstParty: true },
+  { handle: "complexity", label: "@complexity", note: "first-party team news", csOnly: true, team: "Complexity Gaming", firstParty: true },
+  { handle: "BIGCLANgg", label: "@BIGCLANgg", note: "first-party team news", csOnly: true, team: "BIG", firstParty: true },
+  { handle: "imperialesports", label: "@imperialesports", note: "first-party team news", csOnly: true, team: "Imperial Esports", firstParty: true },
+  { handle: "9zTeam", label: "@9zTeam", note: "first-party team news", csOnly: true, team: "9z Team", firstParty: true },
+  { handle: "BetBoomTeam", label: "@BetBoomTeam", note: "first-party team news", csOnly: true, team: "BetBoom Team", firstParty: true },
+  { handle: "virtuspro", label: "@virtuspro", note: "first-party team news", csOnly: true, team: "Virtus.pro", firstParty: true },
   { handle: "GamerLegion", label: "@GamerLegion", note: "first-party team news", csOnly: true, team: "GamerLegion", firstParty: true },
-  { handle: "FNATIC", label: "@FNATIC", note: "first-party team news", csOnly: false, team: "Fnatic", firstParty: true },
-  { handle: "FlyQuest", label: "@FlyQuest", note: "first-party team news", csOnly: false, team: "FlyQuest", firstParty: true },
-  { handle: "NRGgg", label: "@NRGgg", note: "first-party team news", csOnly: false, team: "NRG Esports", firstParty: true },
+  { handle: "FNATIC", label: "@FNATIC", note: "first-party team news", csOnly: true, team: "Fnatic", firstParty: true },
+  { handle: "FlyQuest", label: "@FlyQuest", note: "first-party team news", csOnly: true, team: "FlyQuest", firstParty: true },
+  { handle: "NRGgg", label: "@NRGgg", note: "first-party team news", csOnly: true, team: "NRG Esports", firstParty: true },
   { handle: "M80gg", label: "@M80gg", note: "first-party team news", csOnly: true, team: "M80", firstParty: true },
-  { handle: "WildcardGaming", label: "@WildcardGaming", note: "first-party team news", csOnly: false, team: "Wildcard Gaming", firstParty: true },
-  { handle: "NIP", label: "@NIP", note: "first-party team news", csOnly: false, team: "Ninjas in Pyjamas", firstParty: true },
-  { handle: "tyloogaming", label: "@tyloogaming", note: "first-party team news", csOnly: false, team: "TYLOO", firstParty: true },
+  { handle: "WildcardGaming", label: "@WildcardGaming", note: "first-party team news", csOnly: true, team: "Wildcard Gaming", firstParty: true },
+  { handle: "NIPCS", label: "@NIPCS", note: "first-party team news", csOnly: true, team: "Ninjas in Pyjamas", firstParty: true },
+  { handle: "tyloogaming", label: "@tyloogaming", note: "first-party team news", csOnly: true, team: "TYLOO", firstParty: true },
+  /**
+   * These six came from LIQUIPEDIA'S INFOBOX, not from guessing — which is how the first
+   * round missed them. Every team page carries the org's official social links, so the
+   * handle is a lookup, not a puzzle. Use `action=parse&section=0` and read `twitter =`.
+   *
+   * @futesportsgg is the one that started this: it announced Krabeni's renewal at 13:35:24
+   * and Ozzny posted at 13:46:18. The story was sitting in public for eleven minutes.
+   */
+  { handle: "Team__Spirit", label: "@Team__Spirit", note: "first-party team news", csOnly: true, team: "Team Spirit", firstParty: true },
+  { handle: "1mongolz", label: "@1mongolz", note: "first-party team news", csOnly: true, team: "The MongolZ", firstParty: true },
+  { handle: "AuroraCS2_GG", label: "@AuroraCS2_GG", note: "first-party team news", csOnly: true, team: "Aurora Gaming", firstParty: true },
+  { handle: "sawggofficial", label: "@sawggofficial", note: "first-party team news", csOnly: true, team: "SAW", firstParty: true },
+  { handle: "futesportsgg", label: "@futesportsgg", note: "first-party team news", csOnly: true, team: "FUT Esports", firstParty: true },
 ];
 
 /**
@@ -275,6 +318,8 @@ async function fetchAccount(account: Account, deadline = Infinity): Promise<Feed
      * both qualified" post survives.
      */
     if (OTHER_GAME.test(text) && !DEFINITELY_CS.test(text)) continue;
+    // Merch and sponsor posts, which reading org accounts whole necessarily lets in.
+    if (PROMO.test(text)) continue;
 
     const [first, ...rest] = text.split(/(?<=[.!?:])\s+/);
     const photo = post.mediaDetails?.find((m) => m.type === "photo")?.media_url_https;
