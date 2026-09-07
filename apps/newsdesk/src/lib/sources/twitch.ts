@@ -42,19 +42,18 @@ const HELIX = "https://api.twitch.tv/helix";
  * clip to it before trusting it — the same discipline the X org handles needed.
  */
 const EVENT_CHANNELS = [
+  // VERIFIED live against Twitch's /users from Vercel (where the keys are). These six
+  // resolve and are Counter-Strike broadcasts. The guesses that did NOT resolve are recorded
+  // so nobody re-adds them: blasttv, fissuregg, cct, cct_csgo, dreamhackcs. pgl_dota2
+  // resolved but is Dota, so it is out. Find a real login the way the org X handles were
+  // found — from the source's own page — not by guessing, if you add one.
   "blastpremier",
-  "blasttv",
-  "esl_csgo",
   "eslcs",
+  "esl_csgo",
   "esl",
   "pgl_esports",
-  "pgl_dota2", // some PGL CS broadcasts have historically run on the shared PGL channel
-  "fissuregg",
-  "cct_csgo",
-  "cct",
   "thunderpick",
-  "dreamhackcs",
-];
+]
 
 /** How far back to look. A clip older than this is not news. */
 const WINDOW_HOURS = 18;
