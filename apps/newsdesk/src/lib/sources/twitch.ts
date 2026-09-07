@@ -62,12 +62,16 @@ const WINDOW_HOURS = 18;
 /**
  * The view floor for a highlight to count.
  *
- * Set to cut the round-by-round broadcast spam, which sits at one to a handful of views, not
- * to gate genuine moments — those clear it within the hour on any real broadcast. If fresh
- * highlights feel throttled, lower it; if round-spam creeps back, raise it. The ranking below
- * already prefers higher-viewed clips, so this only decides what is allowed in at all.
+ * DELIBERATELY LOW, and this number is a guess that needs live tuning — Twitch keys are only
+ * in Vercel, so the real view distribution of event highlights cannot be measured from a
+ * sandbox. The real work is done by two filters this only backstops: the event-channel
+ * allowlist (no random streamers at all) and isJunkTitle (no "12-11" round-spam). The floor
+ * just clears the one-to-single-digit-view round clips that slip past a non-junk title, and
+ * the sort below floats the biggest moments regardless. Set at 150 first and it starved the
+ * source to nothing between events; if junk with a real title and 40+ views creeps in, the
+ * lever to raise is this one.
  */
-const MIN_VIEWS = 150;
+const MIN_VIEWS = 40;
 
 /**
  * Titles that are noise, not a highlight.
@@ -178,6 +182,13 @@ export async function fetchTwitch(): Promise<FeedItem[]> {
   const items: FeedItem[] = [];
 
   const channels = await broadcasterIds(EVENT_CHANNELS);
+  /**
+   * Not one login resolved — that is the channel list being wrong, not a quiet day, and it
+   * is worth surfacing rather than swallowing. A quiet day resolves channels and finds no
+   * qualifying clips; this finds no channels at all.
+   */
+  if (channels.length === 0) throw new Error("no Twitch event channels resolved — check the logins");
+
   for (const { id } of channels) {
     try {
       const data = (await helix(`/clips?broadcaster_id=${id}&first=30&started_at=${since}`, 300)) as {
@@ -201,6 +212,11 @@ export async function fetchTwitch(): Promise<FeedItem[]> {
     return vb - va;
   });
 
-  if (items.length === 0) throw new Error("Twitch returned nothing usable");
+  /**
+   * Empty is a normal answer, NOT an error. Between events there are no fresh event-broadcast
+   * highlights, and that is correct — the old code threw here and lit up the feed's error
+   * row on a perfectly healthy quiet day. It throws only when it could not TALK to Twitch at
+   * all (missing keys, every channel call failing), which appToken/helix already surface.
+   */
   return items;
 }
