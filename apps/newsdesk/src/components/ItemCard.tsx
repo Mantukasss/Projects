@@ -9,6 +9,7 @@ import {
   IconListDetails,
   IconPencil,
   IconPhotoPlus,
+  IconQuote,
 } from "@tabler/icons-react";
 import type { FeedItem } from "@/lib/types";
 import {
@@ -74,6 +75,42 @@ export default function ItemCard({
    */
   const [deadImages, setDeadImages] = useState<string[]>([]);
   const [writeup, setWriteup] = useState<Writeup | null>(null);
+
+  interface PulledQuote {
+    text: string;
+    speaker: string | null;
+    about: string;
+    confidence: string;
+  }
+  const [quotes, setQuotes] = useState<PulledQuote[] | null>(null);
+  const [pulling, setPulling] = useState(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+
+  /**
+   * Reads the interview and returns the lines worth posting.
+   *
+   * Only for YouTube items, because it needs captions. Auto-generated captions have no
+   * speaker labels and mishear names, so quotes arrive with a confidence flag and a link
+   * back to the video — they are leads to check, not copy ready to publish.
+   */
+  const pullQuotes = async () => {
+    setPulling(true);
+    setQuoteError(null);
+    try {
+      const res = await fetch("/api/quotes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: item.url }),
+      });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.quotes)) setQuotes(data.quotes);
+      else setQuoteError(data.error ?? "could not read this interview");
+    } catch {
+      setQuoteError("could not read this interview");
+    } finally {
+      setPulling(false);
+    }
+  };
   const [showScoreboard, setShowScoreboard] = useState(false);
 
   /**
@@ -440,6 +477,49 @@ export default function ItemCard({
         <p className="mt-3 text-sm text-text-muted">
           Nothing found in the article — open it and check before posting.
         </p>
+      )}
+
+      {item.source === "youtube" && (
+        <button
+          onClick={pullQuotes}
+          disabled={pulling}
+          className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-teal px-3 text-sm text-teal transition-colors duration-150 ease-out disabled:opacity-50"
+        >
+          <IconQuote size={18} stroke={1.5} />
+          {pulling ? "Reading the interview…" : quotes ? "Read it again" : "Pull quotes from this interview"}
+        </button>
+      )}
+
+      {quoteError && <p className="mt-2 text-xs text-coral">{quoteError}</p>}
+
+      {quotes && (
+        <div className="mt-3 space-y-2">
+          <p className="text-xs uppercase tracking-wide text-text-low">
+            {quotes.length} quotes — check each against the video before posting
+          </p>
+          {quotes.map((quote) => (
+            <div key={quote.text} className="rounded-xl border border-border bg-surface-elevated p-3">
+              <p className="text-sm text-text">&ldquo;{quote.text}&rdquo;</p>
+              <p className="mt-1 text-xs text-text-low">
+                {quote.speaker ? `— ${quote.speaker}` : "speaker not named in the captions"}
+                {quote.about && ` · ${quote.about}`}
+                {quote.confidence === "low" && (
+                  <span className="text-amber"> · verify the wording</span>
+                )}
+              </p>
+              <button
+                onClick={() =>
+                  navigator.clipboard.writeText(
+                    `\u201C${quote.text}\u201D${quote.speaker ? ` — ${quote.speaker}` : ""}`,
+                  )
+                }
+                className="mt-2 min-h-11 w-full rounded-md border border-border text-xs text-text-muted"
+              >
+                Copy this quote
+              </button>
+            </div>
+          ))}
+        </div>
       )}
 
       {matchResult && (
