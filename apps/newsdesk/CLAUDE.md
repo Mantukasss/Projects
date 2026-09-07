@@ -250,9 +250,8 @@ and the app gains Google sign-in copied from `apps/hub`.
   team, which on a transfer story is the club they may be leaving. `/api/logo` 404s on them.
 - **`/api/image` is allowlisted on purpose.** An open image proxy lets anyone use the
   deployment to fetch arbitrary URLs, including private addresses on the host network.
-- **Vercel Hobby caps cron at once per day**, which is why this app is pull-based: it
-  fetches when you open it. Push notifications would need Supabase `pg_cron` + `pg_net`
-  (free, runs in-database, minute-level), not Vercel cron.
+- **Vercel Hobby caps cron at once per day**, which is why push runs on Supabase `pg_cron`
+  instead — free, in-database, minute-level, with `pg_net` making the call. See *Push* below.
 - **The composed square is shown as an `<img>`, not a `<canvas>`, and that is the whole
   point on a phone.** iOS offers "Add to Photos" on a long-pressed `<img>` and nothing at
   all on a canvas — and the camera roll is where X's attach sheet looks. The canvas still
@@ -311,6 +310,48 @@ cannot drift. Nothing may be invented; the prompt says so and the source text is
 All model calls go through `lib/llm.ts`. Everything painful was learned there: the model is
 discovered rather than hardcoded, the token budget is generous because these are reasoning
 models and the budget covers the thinking, and every failure records why.
+
+### Push alerts
+The feed is pull-based, so a story announced at 13:35 sits unread until someone opens the
+app. On the day that prompted this, `@futesportsgg` announced a contract renewal that was
+public for **eleven minutes** before the fastest account in the niche posted it.
+
+**pg_cron is only a TIMER.** Web Push needs a signed VAPID JWT and per-device payload
+encryption, which is not work Postgres should be doing, so `/api/push/dispatch` is the worker
+and `pg_net` is the wire. Verified end to end: cron fires, Vercel answers `200` in ~21ms.
+
+**The double-push guard is an INSERT, not a read.** `newsdesk_claim_push` claims ids with
+`on conflict do nothing ... returning`, so two ticks racing cannot both win a story. Proven,
+not assumed: claiming `probe:1` returned it, claiming it again returned nothing. On a
+one-minute timer against a feed that sometimes takes ten seconds, overlap is when-not-if, and
+read-then-write would buzz twice every time.
+
+**The bar is deliberately high** — score ≥85, under 30 minutes old, not scooped, not awaiting
+translation, at most 2 per tick. A notification not worth opening costs more than a missed
+one: the first teaches you to ignore the next, and then the feature is dead.
+
+**FUNCTIONS IN `public`, TABLES IN `newsdesk`.** The first cut put the functions in `newsdesk`
+and PostgREST answered "Invalid schema: newsdesk" — it only serves schemas it is configured
+to expose, and adding one takes a service restart on Supabase. `public` was already exposed,
+so four narrow secret-guarded functions went there and the tables stayed put behind RLS with
+no policies. Verified: a plain `select` on any of them with the anon key is refused.
+
+**ON IRON RULE #4, departed from deliberately.** The rule keys RLS to `auth.uid()`; newsdesk
+has no auth to key to, and a `user_id` referencing `auth.users` that is always null would fail
+its own not-null constraint. What is done instead is STRICTER: RLS on with NO POLICY on every
+table, so anon reads and writes nothing directly, and all access is through SECURITY DEFINER
+functions, the privileged two behind a shared secret. That also means **the service_role key
+is never needed**, so it stays in the password manager per the other rule. If newsdesk ever
+gains Google sign-in, add `user_id` and a policy alongside these functions — additive, rule #2.
+
+**iOS only allows Web Push inside a home-screen app** and hides `PushManager` in a browser
+tab. That is Apple's rule, not something the page can ask around, so `PushToggle` detects it
+and says to install first rather than showing a button that cannot work. Android works in the
+browser directly.
+
+Secrets (`VAPID_PRIVATE_KEY`, `PUSH_CRON_SECRET`) were generated and written straight into
+Vercel via the API — never printed, never committed. The same secret guards the HTTP route
+and the database functions, so there is one thing to rotate rather than two that can drift.
 
 ### Ordering
 Newest first by default; `?sort=score` returns the ranked order and the UI toggles it.
