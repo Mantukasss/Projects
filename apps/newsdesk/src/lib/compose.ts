@@ -390,6 +390,15 @@ export interface Writeup {
   context: string;
   /** Two or more parallel items, rendered as Ozzny's "> " list. */
   list: string[];
+  /**
+   * The ordinary, photographable THING the quote is about — "glass of water", "alarm clock".
+   *
+   * Not for the post text; it is the second picture. @Ozzny_CS2's best-performing post in the
+   * studied sample ran magixx's face beside a stock photo of a glass of water, because the
+   * quote was about drinking more water. That pair is the joke, and a second portrait could
+   * not have made it. Usually empty — most stories have no such object.
+   */
+  object: string;
   /** Everyone named in the text, speaker first — each is a photo the post can attach. */
   people: string[];
 }

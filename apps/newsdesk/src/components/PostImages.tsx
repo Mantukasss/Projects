@@ -35,10 +35,34 @@ const BG = "#161618";
 
 type Slot = "photo" | "crest";
 
+/**
+ * Ozzny's watermark, bottom-right, on every image he posts.
+ *
+ * Worth copying and not decoration: the pictures are what travel — screenshotted, reposted,
+ * lifted into someone else's thread — and the handle is the only thing that comes with them.
+ * cs2files does not do it, so it is a toggle rather than a rule.
+ *
+ * Drawn small, at low opacity, with a soft shadow so it reads on a light photo and a dark
+ * one without a plate behind it. His sits at roughly 2% of the width in from the corner.
+ */
+function watermark(ctx: CanvasRenderingContext2D, handle: string): void {
+  if (!handle || handle === "@your_handle") return;
+  ctx.save();
+  ctx.font = `500 ${Math.round(SIZE * 0.026)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+  ctx.textAlign = "right";
+  ctx.textBaseline = "bottom";
+  ctx.shadowColor = "rgba(0,0,0,0.55)";
+  ctx.shadowBlur = Math.round(SIZE * 0.008);
+  ctx.fillStyle = "rgba(255,255,255,0.72)";
+  ctx.fillText(handle, SIZE - SIZE * 0.022, SIZE - SIZE * 0.022);
+  ctx.restore();
+}
+
 function useSquare(
   src: string | null,
   slot: Slot,
   brand: string | null,
+  handle: string,
 ): {
   ref: React.RefObject<HTMLCanvasElement | null>;
   state: "loading" | "ready" | "empty";
@@ -94,6 +118,7 @@ function useSquare(
        * surfacing: the canvas still renders, so the tile looks right and only the save falls
        * back to the download button.
        */
+      watermark(ctx, handle);
       try {
         setUrl(canvas.toDataURL("image/png"));
       } catch {
@@ -101,7 +126,7 @@ function useSquare(
       }
       setState("ready");
     },
-    [slot, brand],
+    [slot, brand, handle],
   );
 
   useEffect(() => {
@@ -149,6 +174,7 @@ export default function PostImages({
   second,
   teamPage,
   wiki,
+  handle,
   onReady,
 }: {
   person: string | null;
@@ -156,6 +182,8 @@ export default function PostImages({
   second: string | null;
   teamPage: string | null;
   wiki: "counterstrike" | "valorant";
+  /** Watermarked bottom-right, the way Ozzny does. Empty or the placeholder draws nothing. */
+  handle: string;
   /**
    * Hands the finished squares up as files, so the card can share them with the text.
    *
@@ -217,9 +245,9 @@ export default function PostImages({
     ? `/api/logo?title=${encodeURIComponent(teamPage)}${wiki === "valorant" ? "&wiki=valorant" : ""}`
     : null;
 
-  const photo = useSquare(photoSrc, "photo", null);
-  const face2 = useSquare(secondSrc, "photo", null);
-  const crest = useSquare(crestSrc, "crest", teamPage ? brandOf(teamPage) : null);
+  const photo = useSquare(photoSrc, "photo", null, handle);
+  const face2 = useSquare(secondSrc, "photo", null, handle);
+  const crest = useSquare(crestSrc, "crest", teamPage ? brandOf(teamPage) : null, handle);
 
   const [blocked, setBlocked] = useState<Slot | null>(null);
   const showPhoto = Boolean(photoSrc) && photo.state !== "empty";

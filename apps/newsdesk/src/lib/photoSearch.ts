@@ -35,3 +35,40 @@ export function photoSearchLinks(subject: string, wiki: "counterstrike" | "valor
     },
   ];
 }
+
+/**
+ * Where to find a picture of the THING a quote is about, rather than of the person saying it.
+ *
+ * This is the pattern behind the best-performing post in the sample studied. magixx explained
+ * that he reset by starting to drink water; @Ozzny_CS2 ran his face beside a stock photograph
+ * of a glass of water, and it took 1,576 likes against 119 for the same account's stat post.
+ * The pair is the joke. A second player portrait could not have made it.
+ *
+ * Deliberately links rather than an automatic fetch. Free image search APIs either do not
+ * exist or return whatever is cheapest to serve, and an image chosen badly here is worse than
+ * none — it is the half of the pair carrying the punchline. Ten seconds and a human eye.
+ *
+ * Openverse and Wikimedia first because both are openly licensed, which matters more for a
+ * generic object than for a press photo: this is the one slot where the picture is not news
+ * photography and there is no fair-use argument to lean on.
+ */
+export function objectSearchLinks(subject: string): PhotoLink[] {
+  const q = encodeURIComponent(subject);
+  return [
+    {
+      label: "Openverse",
+      url: `https://openverse.org/search/image?q=${q}`,
+      note: "openly licensed — safest for a generic object",
+    },
+    {
+      label: "Wikimedia",
+      url: `https://commons.wikimedia.org/w/index.php?search=${q}&type=image`,
+      note: "public domain and CC",
+    },
+    {
+      label: "Google Images",
+      url: `https://www.google.com/search?tbm=isch&tbs=isz:l&q=${q}`,
+      note: "filtered to large images",
+    },
+  ];
+}
