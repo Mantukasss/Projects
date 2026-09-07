@@ -203,6 +203,15 @@ and the app gains Google sign-in copied from `apps/hub`.
 - **Vercel Hobby caps cron at once per day**, which is why this app is pull-based: it
   fetches when you open it. Push notifications would need Supabase `pg_cron` + `pg_net`
   (free, runs in-database, minute-level), not Vercel cron.
+- **The composed square is shown as an `<img>`, not a `<canvas>`, and that is the whole
+  point on a phone.** iOS offers "Add to Photos" on a long-pressed `<img>` and nothing at
+  all on a canvas — and the camera roll is where X's attach sheet looks. The canvas still
+  does the drawing and stays as the fallback when a cross-origin photo taints the export.
+- **`x.com/intent/post?text=` opens X's composer with the post already in it.** Public URL,
+  no key, no API — verified live; on iOS it redirects to `x-safari-https://` and hands off
+  to the X app. It cannot carry an attachment, so the flow is: save the two squares, tap
+  Open in X, attach, post. The clipboard is filled first regardless, because the intent URL
+  is one X change away from breaking and a tap must never be a dead end.
 - No source image means the quote card is the media. `needsCard` on the draft flags it and
   the card button turns purple.
 - **Telegram is `cstracker` only, and that is not a news outlet.** It reports Valve build
@@ -223,8 +232,19 @@ and the app gains Google sign-in copied from `apps/hub`.
   gave "Mouz", "9Z" and "THE Mongolz" instead of "MOUZ", "9z" and "The MongolZ".
 
 ### Writing
-`/api/writeup` turns a headline into the three-part post the incumbents use: a lead saying
-what the quote MEANS, the quote verbatim, then a supporting fact. HLTV articles are fetched
+`/api/writeup` turns a headline into the three-part post the incumbents use: a LEAD SENTENCE
+in our own words, the quote verbatim, then a closing fact.
+
+**The prompt used to ask for a "hook" — the speaker's boldest line, in quotation marks, on
+line one.** Neither studied account does that in any post. They say what the quote is ABOUT
+and let you read it: the lead is a promise and the quote is the payoff, and opening with the
+payoff spends it. The model now writes the lead and never touches the quote.
+
+**It also picks the emoji, including picking none.** Which emoji fits is a judgement about
+tone that needs the story — 😭 candid, 💀 humiliating, 🥶 an unexpected number. There used to
+be a `|| KIND_EMOJI[...]` fallback in `compose.ts` that overrode the model's deliberate
+empty string, so every post came out wearing 👀 whatever it was about. The fallback now
+applies only to a bare headline, which has nobody to make the judgement. HLTV articles are fetched
 first so the lead is written from the story rather than from its own headline — that summary
 cannot be derived from the quote alone, and it is the whole difference between the formats.
 The quote is passed through untouched, never regenerated, so the one part that must be exact
@@ -253,12 +273,53 @@ known team gets that team's Liquipedia badge, whatever the source, so a roster s
 out wearing the right crest. Game updates carry two images — the news and the game — which
 is how the accounts that own this beat post them.
 
-### Post format
-Posts open `JUST IN:` or `RUMOR:` and credit no source in the text. Both come from reading
-what the incumbent actually publishes: the label tells a reader in two words how much to
-trust the line, and it makes being wrong survivable — a rumour that does not pan out costs
-nothing if it went out labelled a rumour. Attribution lives in the media and in reply 1,
-never in the body.
+### Post format — read off @Ozzny_CS2 and @cs2files, not invented
+Eleven of their posts were fetched and studied (text, media, dimensions). Every one is three
+blocks separated by blank lines:
+
+```
+{a sentence saying who did or said what}{one emoji, optional}
+
+{the quote in curly quotes, or the background paragraph, or a "> " list}
+
+{one closing fact}
+```
+
+**What they never do — and this file used to do all four.** No `JUST IN:` or `RUMOR:`
+prefix (zero of eleven); the opening line is a SENTENCE — "ruggah has officially retired
+from coaching after more than a decade in Counter-Strike" — or an attribution — "donk on
+what makes tN1R so good:". No lone emoji on its own line; Ozzny closes the LEAD line with
+one, inline (5/5), cs2files usually none (1/5). No "via @handle" in the body; neither
+credits a source in the text, ever. No link in the body.
+
+**What they always do.** Media on every post. Curly quotation marks. `> ` bullets for a list
+of two or more, never for one line. Lead with the human.
+
+`‼️` is used, but only inline at the end of a title headline — "Spirit are your BLAST Porto
+CHAMPIONS 🇵🇹‼️". Anywhere else it reads as punctuation debris.
+
+### The image pair — what actually goes in the second slot
+Also read off the two accounts, by downloading their attachments and measuring them:
+
+| The story | Left | Right |
+|---|---|---|
+| Two people in it | face | **the other face** |
+| One person + their org | face | crest on the org's brand colour |
+| A quote about a thing | face | a picture of the thing (magixx on drinking water → a glass of water) |
+| A title won | the trophy | the stage and the crowd |
+| A clip | the video alone | — |
+
+**Two faces is the commonest pair in both accounts** — cs2files ran donk beside tN1R,
+Ozzny ran donk beside NiKo — and `PostImages` could not make it until it was given
+`second`. The crest is the FALLBACK, not the default.
+
+**Every image in an account is the same aspect ratio.** cs2files is strictly 1:1
+(1080×1080, 1440×1440, 690×690, 481×481, 360×360 — measured). Ozzny is strictly 0.879
+(690×785, 686×780). X crops a side-by-side pair to a shared height, so mixing ratios is what
+produces the two mismatched slivers. This app renders 1080 squares, which is cs2files' shape.
+
+Their crest treatment is exactly `CrestTile`: cs2files' ruggah post ran the Astralis star
+large and white on solid brand red, filling a 360 square. That was confirmed, not assumed.
 
 ## Current state
 **Translation now covers every language, not just Russian.** `lib/language.ts` decides it;

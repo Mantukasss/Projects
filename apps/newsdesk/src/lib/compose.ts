@@ -5,39 +5,61 @@ import { brandOf } from "./teams";
 /**
  * Turns a feed item into a ready-to-post draft.
  *
- * Every rule here comes from reading what the accounts that already won this niche
- * actually do (Ozzny_CS2, Culture Crave, brfootball):
+ * THIS FORMAT IS NOT INVENTED. It is read off @Ozzny_CS2 and @cs2files — eleven of their
+ * posts, fetched and studied — and every rule below names the post it came from. What they
+ * do turned out to be narrower and plainer than what this file used to emit.
  *
- *  1. NO LINK IN THE BODY. X's ranking suppresses posts carrying an external link, and
- *     X's own API prices a link post at $0.20 against $0.015 for a plain one — the
- *     platform is charging 13x for the thing it also demotes. The link goes in reply 1.
- *  2. ALWAYS MEDIA. Every single post in Ozzny's public mirror carries an image. When the
- *     source ships one we attach it; when it doesn't, the quote card becomes the media.
- *  3. LEAD WITH THE HUMAN. "NiKo on the loss: ..." outperforms "Falcons eliminated",
- *     because a face and a feeling get replies and a scoreline gets scrolled past.
- *  4. SHORT. One or two lines, then the emoji. The image carries the detail.
+ * THE SHAPE, in all eleven:
+ *
+ *     {a sentence saying who did or said what}{one emoji, optional}
+ *                                        <- blank line
+ *     {the quote, or the background paragraph, or a > list}
+ *                                        <- blank line
+ *     {one closing fact}
+ *
+ * WHAT THEY NEVER DO, each of which this file used to:
+ *
+ *  - NO "JUST IN:" or "RUMOR:" prefix. Zero of eleven. The opening line is a SENTENCE that
+ *    states the news — "ruggah has officially retired from coaching after more than a
+ *    decade in Counter-Strike" — or an attribution — "donk on what makes tN1R so good:".
+ *    A label in front of a headline is what an aggregator writes; a sentence is what a
+ *    publication writes, and the difference is visible at a glance in a timeline.
+ *  - NO lone emoji on its own line at the end. Ozzny closes the LEAD line with one emoji,
+ *    inline (five of five: 🥶 😭 😭 🇵🇹‼️ 💀); cs2files mostly uses none (one of five). An
+ *    emoji parked on its own line is a tell that a script wrote the post.
+ *  - NO "via @handle" in the body. Neither credits a source in the text, ever. This file
+ *    said so in a comment and then appended one anyway. Attribution is reply 1.
+ *  - NO link in the body. X demotes posts that send people off-platform.
+ *
+ * WHAT THEY ALWAYS DO:
+ *
+ *  - Media on every post. Never a bare text post, in any of the eleven.
+ *  - Curly quotation marks around speech.
+ *  - "> " as the bullet for a list of two or more (Ozzny, twice). Never for a single line.
+ *  - Lead with the human. "donk after winning BLAST Porto" beats "Spirit win BLAST Porto".
  */
-
-const HANDLE = "@your_handle";
 
 /**
- * The label that opens the post. Taken from what the incumbent actually writes: his posts
- * open "JUST IN:" for a confirmed fact and "RUMOR:" for an unconfirmed one, and he credits
- * no source in the text at all — the screenshot carries the proof.
+ * The double-exclamation, kept but repositioned.
  *
- * The label is doing real work. It tells a reader in two words how much to trust the line,
- * which is the whole currency of a news account, and it makes being wrong survivable: a
- * rumor that does not pan out costs nothing if it was posted as a rumor.
+ * Ozzny writes it INLINE at the end of a headline — "Spirit are your BLAST Porto CHAMPIONS
+ * 🇵🇹‼️" — not on a line of its own. It reads as a shout there and as punctuation debris
+ * anywhere else.
  */
-/** The bare marker, for a post whose hook is already doing the work of a label. */
 const MARK = "\u203C\uFE0F";
-const CONFIRMED = "JUST IN:";
-const UNCONFIRMED = "RUMOR:";
 
+/**
+ * The emoji that closes a lead line when the write-up did not choose one.
+ *
+ * Ozzny's picks — 😭 for a player being candid, 💀 for someone getting humiliated, 🥶 for a
+ * number nobody expected — are judgements about tone that need the story, so the model picks
+ * from the text and these are only the floor. Deliberately dull: a wrong emoji reads worse
+ * than a plain one, and 👀 is never wrong on a piece of news.
+ */
 const KIND_EMOJI: Record<FeedItem["kind"], string> = {
-  quote: "🎙️",
-  roster: "🔁",
-  result: "🔥",
+  quote: "👀",
+  roster: "👀",
+  result: "🏆",
   news: "👀",
 };
 
@@ -121,47 +143,103 @@ function firstSentences(text: string, budget: number): string {
   return out.length > budget ? `${out.slice(0, budget).replace(/\s+\S*$/, "")}…` : out;
 }
 
+/**
+ * Assembles the three-block post both accounts write: lead, body, kicker.
+ *
+ * Blank lines between blocks and nowhere else. That gap is what makes a post scannable in a
+ * timeline, and it is the one piece of formatting every single studied post shares.
+ */
+function layout(lead: string, blocks: (string | string[])[]): string {
+  const parts = [lead.trim()];
+  for (const block of blocks) {
+    // An array is a list, and a list gets Ozzny's "> " bullets — but only at two or more.
+    // One "> " line is not a list, it is a stray character.
+    if (Array.isArray(block)) {
+      if (block.length >= 2) parts.push(block.map((line) => `> ${line}`).join("\n"));
+      else if (block.length === 1) parts.push(block[0]);
+    } else if (block.trim()) {
+      parts.push(block.trim());
+    }
+  }
+  return parts.join("\n\n");
+}
+
+/**
+ * Closes the lead line with an emoji, the way Ozzny does — inline, never on its own line.
+ *
+ * A title win also gets the double-exclamation, because that is precisely where he puts it:
+ * "Spirit are your BLAST Porto CHAMPIONS 🇵🇹‼️". Nowhere else — on an ordinary line it reads
+ * as punctuation debris rather than as a shout.
+ */
+function close(lead: string, emoji: string, shout = false): string {
+  const text = lead.trim();
+  const tail = shout ? `${emoji}${MARK}` : emoji;
+  if (tail) return `${text} ${tail}`;
+  /**
+   * No emoji means the lead is a sentence, and cs2files ends those with a full stop —
+   * "ruggah has officially retired from coaching after more than a decade in Counter-Strike."
+   * A dangling clause with no terminator is the difference between a sentence and a headline,
+   * and headlines are what this format is trying not to write. A lead already ending in
+   * punctuation — most often the colon of "donk on tN1R:" — is left alone.
+   */
+  return /[.!?:;,\u201D"')\]]$/.test(text) ? text : `${text}.`;
+}
+
 export function compose(item: FeedItem): Draft {
   const emoji = KIND_EMOJI[item.kind];
+  const shout = item.kind === "result";
   let body: string;
 
   if (item.kind === "quote") {
     const parsed = splitQuote(item.title);
-    // The quote goes on its own line so the eye lands on the words, not the attribution.
+    /**
+     * "donk on what makes tN1R so good:" then the words. cs2files' exact shape, and the
+     * reason it works is that the lead tells you whether the quote is worth reading before
+     * you read it. Without a topic there is only the name, which is still their fallback.
+     */
     body = parsed
-      ? `${parsed.speaker}:\n\n"${parsed.quote}"\n\n${emoji}`
-      : `${CONFIRMED} ${item.title}\n\n${emoji}`;
+      ? layout(`${parsed.speaker}:`, [`\u201C${parsed.quote}\u201D`])
+      : layout(close(item.title, emoji, shout), []);
   } else if (item.kind === "roster" && item.source === "liquipedia") {
-    // A wiki edit is not an announcement, so it goes out labelled as what it is. Writing
-    // it as confirmed news is how a breaking-news account burns the trust it runs on.
+    /**
+     * A wiki edit is not an announcement and must not read like one — but the hedge is a
+     * SENTENCE now, not a "RUMOR:" label. Same honesty, and it reads like a person wrote it.
+     */
     const { subject, section, burst } = readWikiEdit(item);
     body = burst
-      ? `${UNCONFIRMED} something is moving around ${subject}.\n\n${item.summary}\n\nNot confirmed — watching for an announcement.`
-      : `${UNCONFIRMED} Liquipedia just edited ${subject}` +
-        (section ? ` — "${section}"` : "") +
-        `\n\nNot confirmed. Watching for an announcement.`;
+      ? layout(`Something is moving around ${subject} 👀`, [
+          item.summary,
+          "Nothing announced yet — this is the wiki, not the org.",
+        ])
+      : layout(
+          `Liquipedia just edited ${subject}${section ? ` — \u201C${section}\u201D` : ""} 👀`,
+          ["Nothing announced yet — this is the wiki, not the org."],
+        );
   } else if (item.source === "steam") {
-    // Valve titles every patch "Counter-Strike 2 Update", which is a headline that tells a
-    // reader nothing. What changed is in the body, so the body leads and the title frames.
-    const detail = firstSentences(item.summary, 200);
-    body = detail
-      ? `${CONFIRMED} ${item.title}\n\n${detail}\n\n${emoji}`
-      : `${CONFIRMED} ${item.title}\n\n${emoji}`;
+    // Valve titles every patch "Counter-Strike 2 Update", which tells a reader nothing, so
+    // the change leads and the title never appears.
+    const detail = firstSentences(item.summary, 220);
+    body = layout(close(item.title, emoji, shout), [detail]);
   } else if (item.source === "telegram") {
-    // Telegram carries both, and the channels say which: Russian posts mark rumours with
-    // "слух". Anything unresolved stays labelled a rumour rather than promoted to fact.
+    // The channels mark rumours with "слух". An unresolved one keeps its hedge, in prose.
     const rumoured = /\b(слух|rumou?r|reportedly|apparently)\b/i.test(
       `${item.title} ${item.summary}`,
     );
-    body = `${rumoured ? UNCONFIRMED : CONFIRMED} ${item.title}\n\n${emoji}`;
+    body = layout(close(item.title, emoji, shout), [
+      rumoured ? "Reported, not confirmed." : "",
+    ]);
   } else {
-    body = `${CONFIRMED} ${item.title}\n\n${emoji}`;
+    body = layout(close(item.title, emoji, shout), []);
   }
 
-  const handle = SOURCE_HANDLE[item.source];
-  // The credit rides on the emoji line rather than taking a line of its own, so it never
-  // costs the post a line of substance.
-  const credited = handle ? `${body} via ${handle}` : body;
+  /**
+   * No credit in the body, at all.
+   *
+   * Neither studied account credits a source in the post text — not once in eleven posts.
+   * This file's own header said so and the code appended "via @HLTVorg" anyway. The
+   * attribution belongs in reply 1, where it costs the post nothing.
+   */
+  const credited = body;
 
   const { options, needsCard } = planMedia(item);
 
@@ -283,67 +361,62 @@ export function planMedia(
   };
 }
 
-/**
- * Rebuilds the draft with the specifics the headline promised.
- *
- * Used after /api/detail resolves an article's team list, so "Closed Qualifier teams
- * announced" becomes a post that actually names them.
- */
 export interface Writeup {
   /** Which shape the source suited: someone's words, or something that happened. */
   kind: "quote" | "story";
-  hook: string;
+  /**
+   * The opening SENTENCE — who, and what this is about — in our own words.
+   *
+   * This replaces the old "hook", which put the speaker's boldest line in quotation marks
+   * on line one. Neither studied account does that: they say what the quote is about and
+   * then let you read it. "magixx revealed the strategy he used to reset after MOUZ did the
+   * comeback on Mirage"; "donk on what makes tN1R so good:". The lead is the promise and
+   * the quote is the payoff, and leading with the payoff spends it.
+   */
+  lead: string;
+  /** One emoji closing the lead line, chosen from the story. Empty for a flat one. */
+  emoji: string;
   speaker: string;
+  /** The words themselves, verbatim — never regenerated, so the exact part cannot drift. */
   quote: string;
-  opening: string;
-  reason: string;
-  consequence: string;
+  /** For a story: the background paragraph that gives the news its weight. */
+  background: string;
+  /** The closing fact — what it means now, or the number that proves the lead. */
   context: string;
+  /** Two or more parallel items, rendered as Ozzny's "> " list. */
+  list: string[];
   /** Everyone named in the text, speaker first — each is a photo the post can attach. */
   people: string[];
 }
 
 /**
- * The post: the sharpest line the speaker said, attributed, then the reasoning, then a
- * supporting fact.
+ * The post, in the studied shape: lead, then the words or the background, then the kicker.
  *
- * The hook carries the marker and the attribution on one line, because that line has to
- * work on its own — it is all most people will read. Curly quotation marks throughout:
- * every account in this scene uses them, and straight quotes are one of the small tells
- * that a post came out of a script.
+ * Curly quotation marks throughout — both accounts use them, and straight quotes are one of
+ * the small tells that a script wrote the post.
  */
 export function composeFromWriteup(item: FeedItem, writeup: Writeup): Draft {
   const base = compose(item);
-  const parts: string[] = [];
+  /**
+   * The model's emoji, including its decision NOT to use one.
+   *
+   * There used to be a `|| KIND_EMOJI[...]` fallback here, which meant the prompt asked for
+   * an empty string when none fit and then had that answer overridden — every post came out
+   * wearing 👀 whatever it was about. cs2files leaves the emoji off four posts in five. The
+   * fallback belongs on a bare headline, which has nobody to make the judgement.
+   */
+  const lead = close(writeup.lead, writeup.emoji, item.kind === "result");
 
-  if (writeup.kind === "story") {
-    /**
-     * A retelling, in our own words. The opening sets an expectation and breaks it, the
-     * reason is set off on its own line so the eye lands on it, and the consequence says
-     * why it still matters. Facts are nobody's property; the sentences carrying them are
-     * ours, which is the whole difference between reporting a story and reposting one.
-     */
-    parts.push(`${writeup.opening} ${MARK}`);
-    if (writeup.reason) parts.push(`> ${writeup.reason}`);
-    if (writeup.consequence) parts.push(writeup.consequence);
-  } else {
-    const attribution = writeup.speaker ? ` — ${writeup.speaker}` : "";
-    parts.push(`${MARK} \u201C${writeup.hook}\u201D${attribution}`);
+  const body =
+    writeup.kind === "quote"
+      ? layout(lead, [
+          writeup.quote ? `\u201C${writeup.quote}\u201D` : "",
+          writeup.list,
+          writeup.context,
+        ])
+      : layout(lead, [writeup.background, writeup.list, writeup.context]);
 
-    // The fuller passage only earns its place when it says more than the hook already did.
-    if (writeup.quote && writeup.quote.trim() !== writeup.hook.trim()) {
-      parts.push(`\u201C${writeup.quote}\u201D`);
-    }
-  }
-
-  if (writeup.context) parts.push(writeup.context);
-
-  const handle = SOURCE_HANDLE[item.source];
-  return {
-    ...base,
-    // The credit gets its own line, the way the accounts worth copying place it.
-    body: parts.join("\n\n") + (handle ? `\n\nSource: ${handle}` : ""),
-  };
+  return { ...base, body };
 }
 
 export function composeWithDetail(
@@ -352,34 +425,32 @@ export function composeWithDetail(
 ): Draft {
   const base = compose(item);
   const teams = detail.teams ?? [];
+  const lead = close(item.title, KIND_EMOJI[item.kind], item.kind === "result");
 
   // A record story mentions plenty of teams in passing; listing them would be nonsense.
   // The promise the headline broke decides which detail repairs it.
   if (item.incomplete === "number" && detail.keyFact) {
-    return {
-      ...base,
-      body: `${CONFIRMED} ${item.title}\n\n${detail.keyFact}\n\n${KIND_EMOJI[item.kind]}`,
-    };
+    return { ...base, body: layout(lead, [detail.keyFact]) };
   }
 
   if (teams.length > 0 && item.incomplete !== "number") {
-    // A wall of thirty names is not readable on a phone. Name the ones that fit and count
-    // the rest honestly, rather than silently truncating.
+    /**
+     * The qualified teams as Ozzny's "> " list rather than a comma run-on. A list reads as
+     * a scoreboard; a run-on reads as a paragraph nobody finishes.
+     *
+     * Ten and then a count: thirty names is unreadable on a phone, and truncating silently
+     * is worse than saying how many were left out.
+     */
     const shown = teams.slice(0, 10);
     const remaining = teams.length - shown.length;
-    const list = shown.join(", ") + (remaining > 0 ? ` +${remaining} more` : "");
     return {
       ...base,
-      body: `${CONFIRMED} ${item.title}\n\n${list}\n\n${KIND_EMOJI[item.kind]}`,
+      body: layout(lead, [shown, remaining > 0 ? `+${remaining} more` : ""]),
     };
   }
 
   if (detail.keyFact) {
-    // The figure IS the story for a record post, so it leads and the headline supports it.
-    return {
-      ...base,
-      body: `${CONFIRMED} ${item.title}\n\n${detail.keyFact}\n\n${KIND_EMOJI[item.kind]}`,
-    };
+    return { ...base, body: layout(lead, [detail.keyFact]) };
   }
 
   return base;
@@ -408,7 +479,15 @@ function sourceReply(item: FeedItem): string {
   if (origin) {
     return `Source: ${origin}\nFound via ${SOURCE_NAME[item.source]}: ${item.url}`;
   }
-  return `Source: ${SOURCE_NAME[item.source]}\n${item.url}`;
+  /**
+   * A handle where the source has one, the plain name otherwise.
+   *
+   * A mention costs nothing — X keeps the reader on the platform, unlike a link — and it
+   * buys two things: a lifted scoop stops looking lifted, and the credited account
+   * sometimes replies, which is reach.
+   */
+  const handle = SOURCE_HANDLE[item.source];
+  return `Source: ${handle ?? SOURCE_NAME[item.source]}\n${item.url}`;
 }
 
 /** X counts a post at 280 characters for a free account; Premium raises the ceiling. */
@@ -416,4 +495,4 @@ export function postLength(body: string): number {
   return [...body].length;
 }
 
-export { HANDLE, SOURCE_NAME, CONFIRMED, UNCONFIRMED, splitQuote };
+export { SOURCE_NAME, splitQuote };

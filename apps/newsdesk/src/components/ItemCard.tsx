@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   IconCheck,
+  IconBrandX,
   IconCopy,
   IconExternalLink,
   IconLanguage,
@@ -257,6 +258,29 @@ export default function ItemCard({
     setTimeout(() => setCopied(null), 1600);
   };
 
+  /**
+   * Opens X's composer with the post already in it.
+   *
+   * `x.com/intent/post?text=` is a public URL, no key and no API: verified live, and on iOS
+   * it redirects to `x-safari-https://` which hands off to the X app rather than the
+   * browser. So the whole flow becomes save the two pictures, tap this, attach, post —
+   * instead of copy, switch app, find the composer, paste.
+   *
+   * The clipboard is still filled first. The intent URL cannot carry an attachment, and it
+   * is one X change away from breaking; a post already on the clipboard means the tap is
+   * never a dead end.
+   */
+  const openComposer = async () => {
+    await navigator.clipboard.writeText(draft.body).catch(() => undefined);
+    setCopied("body");
+    setTimeout(() => setCopied(null), 1600);
+    window.open(
+      `https://x.com/intent/post?text=${encodeURIComponent(draft.body)}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  };
+
   return (
     <article
       className={`rounded-2xl border border-border bg-surface p-4 transition-all duration-200 ease-out ${
@@ -310,8 +334,12 @@ export default function ItemCard({
 
       {/* The matched pair leads, because it is what the post should actually go out with.
           Everything below it is an alternative, not the default. */}
+      {/* The write-up names everyone in the story, speaker first, so a quote about two
+          people can go out wearing both their faces — which is the pair both studied
+          accounts reach for first. The crest is what fills the slot when there is only one. */}
       <PostImages
         person={writeup?.people?.[0] ?? item.playerName ?? null}
+        second={writeup?.people?.[1] ?? null}
         teamPage={item.teamPage ?? null}
         wiki={item.source === "vlr" ? "valorant" : "counterstrike"}
       />
@@ -555,11 +583,22 @@ export default function ItemCard({
         <p className="mt-2 text-xs text-coral">{writeError}</p>
       )}
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
+      {/* One tap to publish: the text goes to the clipboard AND to X's composer. Everything
+          else on this row is a fallback for when that is not what you want. */}
+      <button
+        onClick={openComposer}
+        disabled={blocked}
+        className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-amber font-medium text-black transition-colors duration-150 ease-out disabled:opacity-40"
+      >
+        <IconBrandX size={18} stroke={1.5} />
+        {blocked ? "Fix the post first" : "Open in X — text ready"}
+      </button>
+
+      <div className="mt-2 grid grid-cols-2 gap-2">
         <button
           onClick={() => copy("body")}
           disabled={blocked}
-          className="flex min-h-11 items-center justify-center gap-2 rounded-md bg-amber font-medium text-black transition-colors duration-150 ease-out disabled:opacity-40"
+          className="flex min-h-11 items-center justify-center gap-2 rounded-md border border-border text-text-muted transition-colors duration-150 ease-out hover:text-text disabled:opacity-40"
         >
           {copied === "body" ? <IconCheck size={18} stroke={1.5} /> : <IconCopy size={18} stroke={1.5} />}
           {copied === "body" ? "Copied" : "Copy post"}
