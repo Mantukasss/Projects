@@ -67,6 +67,7 @@ const SOURCE_NAME: Record<FeedItem["source"], string> = {
   telegram: "Telegram",
   twitch: "Twitch",
   youtube: "YouTube",
+  x: "X",
   vlr: "VLR.gg",
 };
 
@@ -398,6 +399,12 @@ export function composeWithDetail(
  * article — that link leads and the channel follows as "found via".
  */
 function sourceReply(item: FeedItem): string {
+  // An X post is already attributed to a handle, and that handle is what verifies it.
+  if (item.source === "x") {
+    const handle = item.url.match(/x\.com\/([^/]+)\//)?.[1];
+    return handle ? `Source: @${handle}\n${item.url}` : `Source: X\n${item.url}`;
+  }
+
   const origin = `${item.title} ${item.summary}`.match(
     /https?:\/\/(?!t\.me\b)[^\s"'<>)]+/i,
   )?.[0];

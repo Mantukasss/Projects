@@ -5,10 +5,9 @@ import { IconRefresh, IconSettings } from "@tabler/icons-react";
 import type { FeedItem, SourceId } from "@/lib/types";
 import { SOURCE_NAME } from "@/lib/compose";
 import ItemCard from "./ItemCard";
-import QuoteCard from "./QuoteCard";
 
-const ALL_SOURCES: SourceId[] = ["hltv", "youtube", "twitch", "liquipedia", "steam", "telegram", "reddit", "vlr"];
-const DEFAULT_SOURCES: SourceId[] = ["hltv", "youtube", "twitch", "liquipedia", "steam", "telegram", "reddit"];
+const ALL_SOURCES: SourceId[] = ["hltv", "x", "youtube", "twitch", "liquipedia", "steam", "telegram", "reddit", "vlr"];
+const DEFAULT_SOURCES: SourceId[] = ["hltv", "x", "youtube", "twitch", "liquipedia", "steam", "telegram", "reddit"];
 
 const POSTED_KEY = "newsdesk.posted";
 const HANDLE_KEY = "newsdesk.handle";
@@ -42,9 +41,6 @@ export default function Feed() {
   const [sources, setSources] = useState<SourceId[]>(DEFAULT_SOURCES);
   const [showSettings, setShowSettings] = useState(false);
   const [sortByScore, setSortByScore] = useState(false);
-  const [cardFor, setCardFor] = useState<FeedItem | null>(null);
-  // Which items have had their card generated, so "no image" clears once one exists.
-  const [carded, setCarded] = useState<string[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -212,15 +208,6 @@ export default function Feed() {
             handle={handle}
             posted={posted.includes(item.id)}
             onTogglePosted={() => togglePosted(item.id)}
-            cardMade={carded.includes(item.id)}
-            // The card is built from whatever the row hands back — the translated version
-            // when there is one, so an English card never carries the Russian original.
-            onMakeCard={(forCard) => {
-              setCardFor(forCard);
-              setCarded((current) =>
-                current.includes(item.id) ? current : [...current, item.id],
-              );
-            }}
           />
         ))}
         {!loading && items.length === 0 && (
@@ -229,10 +216,6 @@ export default function Feed() {
           </p>
         )}
       </div>
-
-      {cardFor && (
-        <QuoteCard item={cardFor} handle={handle} onClose={() => setCardFor(null)} />
-      )}
     </main>
   );
 }
