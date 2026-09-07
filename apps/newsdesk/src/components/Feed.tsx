@@ -5,6 +5,7 @@ import { IconRefresh, IconSettings } from "@tabler/icons-react";
 import type { FeedItem, SourceId } from "@/lib/types";
 import { SOURCE_NAME } from "@/lib/compose";
 import ItemCard from "./ItemCard";
+import PushToggle from "./PushToggle";
 
 const ALL_SOURCES: SourceId[] = ["hltv", "x", "youtube", "twitch", "liquipedia", "steam", "telegram", "reddit", "vlr"];
 const DEFAULT_SOURCES: SourceId[] = ["hltv", "x", "youtube", "twitch", "liquipedia", "steam", "telegram", "reddit"];
@@ -166,6 +167,13 @@ export default function Feed() {
             }}
             className="mb-4 min-h-11 w-full rounded-md border border-border bg-bg px-3 text-text outline-none focus:border-border-focus"
           />
+          {/* Alerts sit above Sources because turning them on is the thing that changes how
+              the app is used: it stops being something you remember to open. */}
+          <p className="mb-2 text-xs uppercase tracking-wide text-text-muted">Alerts</p>
+          <div className="mb-4">
+            <PushToggle />
+          </div>
+
           <p className="mb-2 text-xs uppercase tracking-wide text-text-muted">Sources</p>
           <div className="flex flex-wrap gap-2">
             {ALL_SOURCES.map((source) => (
