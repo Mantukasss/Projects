@@ -128,6 +128,14 @@ and the app gains Google sign-in copied from `apps/hub`.
   30 kills as Team Spirit win Nuke over FaZe" — label gone, line reworded for nothing. An
   instruction a model reliably disobeys is not a rule, so `/api/translate` short-circuits on
   `needsTranslation` before calling out. Same test as the button, so the two cannot disagree.
+- **A translation can come back still foreign, and that must be reported.** The prompt tells
+  the model to leave a name it cannot spell exactly as written — right, because an invented
+  nickname is worse than an untranslated one — but on a short fragment like a three-letter
+  Twitch clip title that rule returns the whole line unchanged. The button looked like it had
+  done nothing. The result is re-tested with `needsTranslation` and says so when it failed.
+- **`needsTranslation` is measured on the ORIGINAL item, so it stays true after translating.**
+  A message gated on it alone kept telling someone who had just translated a post to translate
+  it first. Gate on `needsTranslation && !translated`.
 - **The translator is never told which language it is reading.** Portuguese and Spanish share
   most of their function words, so labelling would mean guessing, and a model handed a wrong
   language label follows the label instead of the text. It gets the text and works it out.
@@ -154,6 +162,15 @@ and the app gains Google sign-in copied from `apps/hub`.
   to a shared height, so a tall portrait beside a wide capsule becomes two mismatched
   slivers. `PostImages` renders both onto a 1080 square — cover-cropped and biased upward
   for a face, contained with a wide margin for a crest — so the pair always sits flush.
+- **The pair tries EVERY candidate, not just a photo and a crest.** It used to render only
+  those two, so a card with neither produced no squares at all, nothing reached the share
+  sheet, and the only route left was X's intent URL — which cannot carry an attachment. That
+  is exactly how a post went out as text alone. The planned media are candidates now, in
+  order, and a slot whose image fails advances to the next unused one.
+- **`x.com/intent/post` cannot carry an image. Nothing can change that.** Only
+  `navigator.share({files})` hands pictures to another app, so that is the primary button and
+  the intent URL is the text-only fallback. Where the browser refuses files the card says so
+  in a line rather than looking broken.
 - **Never render a slot with nothing in it.** An empty coloured square looks like a finished
   image, so it gets attached and the post goes out with a blank tile. `PostImages` hides a
   slot whose source did not load and drops to a single column.
@@ -198,11 +215,21 @@ and the app gains Google sign-in copied from `apps/hub`.
 - **HLTV article images come in two kinds.** `/gallerypicture/` is editorial — the graphic
   listing who qualified, the trophy shot — and worth attaching to a post. `/teamlogo/` is a
   100px inline icon and is not media. `/api/detail` returns only the first kind.
-- **HLTV's image CDN answers a browser and refuses a server.** Its photos must be rendered
-  from the source URL directly; routing them through `/api/image` returns 502 and blanks
-  every player photo in the feed. The proxy exists for the canvas, not for display.
-  Consequence: a source photo drawn onto the quote card taints it, so `download()` catches
-  the throw, drops the photo and redraws.
+- **HLTV's image CDN can NEVER be made exportable, and this is settled — stop re-testing it.**
+  It answers 403 to Vercel's runtime, so `/api/image` cannot re-serve it (502 downstream), AND
+  it sends no `Access-Control-Allow-Origin`, so a browser cannot load it with CORS either.
+  Both routes to an exportable canvas are closed. Measured, not assumed: 403 to every
+  User-Agent from a datacenter IP, and no ACAO header on a 200 either.
+  CONSEQUENCE, and it is the important one: an HLTV photo drawn into a composed square makes
+  that square unexportable, which makes it unshareable, which is how a post reached X as text
+  with no pictures. So HLTV photos are shown as PLAIN `<img>` tiles — press-and-hold still
+  saves those — and the composed pair uses Liquipedia's portrait instead. A slightly softer
+  photo that can be shared beats a better one that cannot.
+- **Every square in the pair must come from an origin we control.** `PostImages` only accepts
+  a candidate that is same-origin (`/api/photo`, `/api/logo`) or on `/api/image`'s allowlist,
+  which now includes `pbs.twimg.com`, `static-cdn.jtvnw.net`, `clips-media-assets2.twitch.tv`
+  and `i.ytimg.com` — all four verified to answer a server. Anything else is dropped from the
+  pair rather than silently tainting it.
 - **`teams.ts` is a curated list and `/api/logo` trusts it.** The shape heuristic that keeps
   player pages out also rejects real orgs carrying no giveaway word — "The MongolZ",
   "Astralis", "Fnatic" — and silently dropped their badges.
