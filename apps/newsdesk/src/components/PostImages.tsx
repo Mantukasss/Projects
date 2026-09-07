@@ -273,6 +273,12 @@ export default function PostImages({
   }, [person, second, teamPage]);
 
   const wikiParam = wiki === "valorant" ? "&wiki=valorant" : "";
+  // ItemCard rebuilds `options` (draft.images) on every render, so its ARRAY IDENTITY changes
+  // every time even when the contents are identical. Keying the memo and the slot-reset on a
+  // string of the urls makes them stable across renders — without it the reset effect below
+  // fired every render, resetting the slots, re-rendering, and resetting again: the whole
+  // feed twitched. Content, not identity.
+  const optionsKey = options.map((o) => o.url).join("|");
 
   /**
    * Everything this post could put in a square, best first.
@@ -323,7 +329,8 @@ export default function PostImages({
       });
     }
     return list;
-  }, [person, second, teamPage, options, wikiParam]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [person, second, teamPage, optionsKey, wikiParam]);
 
   /**
    * HLTV's editorial photographs, offered separately because they cannot be composed.
@@ -347,10 +354,16 @@ export default function PostImages({
   const [left, setLeft] = useState(0);
   const [right, setRight] = useState(1);
 
+  /**
+   * Reset the slots only when the actual set of candidates changes — keyed on their urls, not
+   * on the array's identity. This is the line that caused the twitch: `[candidates]` was a
+   * fresh array every render, so this ran every render.
+   */
+  const candidatesKey = candidates.map((c) => c.url).join("|");
   useEffect(() => {
     setLeft(0);
     setRight(1);
-  }, [candidates]);
+  }, [candidatesKey]);
 
   const a = useSquare(candidates[left] ?? null, handle);
   const b = useSquare(candidates[right] ?? null, handle);
