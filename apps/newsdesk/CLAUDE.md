@@ -260,17 +260,33 @@ newest few posts, and `cdn.syndication.twimg.com/tweet-result` — the endpoint 
 render embeds — returns any public post's full text and media by id, unauthenticated, with
 a token derived arithmetically from the id. Neither step needs a key.
 
-This yields the newest ~6 per account and WILL break whenever X changes either page: treat
-a sudden empty result as that, not as the accounts going quiet. Requests are sequential
-because parallel scraping of one host gets blocked.
+DEPTH IS CAPPED at about five per account and cannot be raised — those are the ids X embeds
+for search engines. Every widening was tried and failed: mobile UA, /with_replies, /media,
+twitter.com, and the embed timeline widget, which returns an empty shell because its entries
+come from a gated client call. The answer is BREADTH: seventeen accounts at five each.
+
+Because that is a lot of requests, the sweep runs to a TIME BUDGET (6s) from a rotating
+offset, so one refresh reads what it can afford and the next starts elsewhere; the shared
+Data Cache carries the rest. A feed that arrives having read twelve accounts beats one that
+times out having read all seventeen.
+
+Accounts are marked `csOnly`. The ones that are not — Dexerto, Richard Lewis — cover all of
+gaming and arrived carrying a Rockstar story and a mountain rescue, so their posts must
+match CS terms; a dedicated CS account's are taken whole, since filtering those would drop
+roster news that happens not to say "CS".
+
+It WILL break whenever X changes either page: treat a sudden empty result as that, not as
+the accounts going quiet. Requests are sequential because parallel scraping gets blocked.
 
 Why it matters: a post carries its author, so a quote arrives already attributable to the
 handle that said it — which is exactly what a news account needs and what a transcript
 lacks. Scored highest for that reason.
 
-Automatic transcription of interviews is NOT available: YouTube serves servers a 3KB stub
-so caption tracks cannot be reached, and its captions endpoint requires being the video's
-owner. Do not spend time re-testing that.
+Automatic transcription of interviews is NOT available, and this was established properly
+rather than assumed. The watch page returns a 3KB stub; the internal `youtubei/v1/player`
+endpoint answers `LOGIN_REQUIRED — "Sign in to confirm you're not a bot"` for every client
+context (ANDROID, IOS, WEB, TVHTML5). That is an IP-reputation block on datacenter ranges,
+not a missing parameter. Do not spend time re-testing it.
 
 ### YouTube — the interview source
 `youtube.ts` reads HLTV's channel, which carries HLTV Confirmed: their talk show, three

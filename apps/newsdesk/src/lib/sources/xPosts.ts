@@ -18,9 +18,22 @@ import { decodeEntities } from "./fetchXml";
  *      any public post's full text and media by id, free and unauthenticated. Its token is
  *      derived arithmetically from the id.
  *
- * Neither step needs a key, and the X API has no free tier, so this is the only route. It
- * yields only the newest handful per account, and it will break whenever X changes either
- * page — treat a sudden empty result as that, not as the accounts going quiet.
+ * Neither step needs a key, and the X API has no free tier, so this is the only route.
+ *
+ * DEPTH IS CAPPED AT ABOUT FIVE POSTS PER ACCOUNT and cannot be raised: the ids in the page
+ * are the handful X embeds for search engines. Every widening was tried — mobile user
+ * agent, /with_replies, /media, twitter.com, and the embed timeline widget, which returns an
+ * empty shell because it loads its entries from a gated client call. So the answer is
+ * breadth: many accounts, five each, rather than one account and fifty.
+ *
+ * Because that means a lot of requests, the sweep runs against a TIME BUDGET and starts at a
+ * rotating offset. One refresh covers as many accounts as it can afford; the next starts
+ * where pressure is different, and Vercel's shared Data Cache means most of what it revisits
+ * is already there. Over a few minutes every account gets read without any single request
+ * paying for all of them.
+ *
+ * It will break whenever X changes either page — treat a sudden empty result as that, not
+ * as the accounts going quiet.
  */
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
@@ -30,20 +43,57 @@ interface Account {
   label: string;
   /** Why this account is worth reading, shown on the card. */
   note: string;
+  /**
+   * True when everything the account posts is Counter-Strike.
+   *
+   * Some of the best-informed accounts cover all of gaming — Dexerto's feed arrived
+   * carrying a Rockstar story and a mountain rescue — so their posts are filtered for
+   * relevance while a dedicated CS account's are taken whole. Filtering everything would
+   * throw away roster news that happens not to say the word "CS".
+   */
+  csOnly: boolean;
 }
+
+/**
+ * Enough to tell a Counter-Strike post from a general gaming one. Team and player names
+ * carry most of the weight, because a real CS post names somebody.
+ */
+const CS_RELEVANT =
+  /\b(cs2|csgo|counter-?strike|hltv|blast|iem|esl|pgl|major|awp(er)?|igl|lan|vertigo|mirage|inferno|nuke|ancient|dust2|anubis|train|overpass|roster|stand-?in|vitality|navi|natus vincere|spirit|falcons|mouz|g2|furia|faze|astralis|liquid|heroic|mongolz|aurora|fnatic|nip|ninjas in pyjamas|virtus|betboom|3dmax|gamerlegion|eternal fire|pain gaming|imperial|legacy|tyloo|complexity|nrg|m80|wildcard|s1mple|donk|zywoo|m0nesy|niko|ropz|apex|torzsi|xertion|frozen|broky|karrigan|magixx|sh1ro|zont1x|molodoy|jame|jl|fallen)\b/i;
 
 /**
  * Verified to browse. Handles that resolve to nothing are silently absent rather than an
  * error, so a renamed account disappears quietly — check here first if one stops appearing.
  */
 const ACCOUNTS: Account[] = [
-  { handle: "HLTVorg", label: "@HLTVorg", note: "their own interview quotes and rankings" },
-  { handle: "BLASTPremier", label: "@BLASTPremier", note: "broadcast clips and interviews" },
-  { handle: "ESLCS", label: "@ESLCS", note: "event news and interviews" },
-  { handle: "TeamVitality", label: "@TeamVitality", note: "first-party team news" },
-  { handle: "natusvincere", label: "@natusvincere", note: "first-party team news" },
-  { handle: "FaZeClan", label: "@FaZeClan", note: "first-party team news" },
+  // Media and broadcast: where interviews get published.
+  { handle: "HLTVorg", label: "@HLTVorg", note: "interview quotes and rankings", csOnly: true },
+  { handle: "BLASTPremier", label: "@BLASTPremier", note: "broadcast clips and interviews", csOnly: true },
+  { handle: "ESLCS", label: "@ESLCS", note: "event news and interviews", csOnly: true },
+  { handle: "richardlewis", label: "@richardlewis", note: "reporting and long-form takes", csOnly: false },
+  { handle: "jaxon_gg", label: "@jaxon_gg", note: "CS coverage", csOnly: false },
+  { handle: "dexerto", label: "@dexerto", note: "esports coverage", csOnly: false },
+  { handle: "strife_gg", label: "@strife_gg", note: "CS coverage", csOnly: false },
+
+  // Players speaking for themselves — the most attributable quote there is.
+  { handle: "s1mpleO", label: "@s1mpleO", note: "first-party", csOnly: true },
+  { handle: "ZywOo", label: "@ZywOo", note: "first-party", csOnly: true },
+  { handle: "torzsi_", label: "@torzsi_", note: "first-party", csOnly: true },
+
+  // Orgs announcing their own business.
+  { handle: "TeamVitality", label: "@TeamVitality", note: "first-party team news", csOnly: true },
+  { handle: "natusvincere", label: "@natusvincere", note: "first-party team news", csOnly: true },
+  { handle: "FaZeClan", label: "@FaZeClan", note: "first-party team news", csOnly: true },
+  { handle: "G2esports", label: "@G2esports", note: "first-party team news", csOnly: true },
+  { handle: "FURIA", label: "@FURIA", note: "first-party team news", csOnly: true },
+  { handle: "paiNGamingBR", label: "@paiNGamingBR", note: "first-party team news", csOnly: true },
 ];
+
+/**
+ * How long one refresh may spend here. Beyond this it returns what it has: a feed that
+ * arrives with twelve accounts read beats one that times out having read all seventeen.
+ */
+const TIME_BUDGET_MS = 6000;
 
 /** The token X's own embed player derives from a post id. */
 function token(id: string): string {
@@ -89,11 +139,12 @@ function clean(text: string): string {
   return decodeEntities(text.replace(/https:\/\/t\.co\/\w+/g, "")).replace(/\s+/g, " ").trim();
 }
 
-async function fetchAccount(account: Account): Promise<FeedItem[]> {
+async function fetchAccount(account: Account, deadline = Infinity): Promise<FeedItem[]> {
   const ids = await recentIds(account.handle);
   const items: FeedItem[] = [];
 
   for (const id of ids) {
+    if (Date.now() > deadline) break;
     const post = await readPost(id);
     if (!post) continue;
     // The profile page lists quoted and replied-to posts too; keep only this account's own.
@@ -101,6 +152,8 @@ async function fetchAccount(account: Account): Promise<FeedItem[]> {
 
     const text = clean(post.text ?? "");
     if (text.length < 25) continue;
+    // A general-gaming account has to prove the post is about Counter-Strike.
+    if (!account.csOnly && !CS_RELEVANT.test(text)) continue;
 
     const [first, ...rest] = text.split(/(?<=[.!?:])\s+/);
     const photo = post.mediaDetails?.find((m) => m.type === "photo")?.media_url_https;
@@ -124,11 +177,19 @@ async function fetchAccount(account: Account): Promise<FeedItem[]> {
 }
 
 export async function fetchXPosts(): Promise<FeedItem[]> {
+  const deadline = Date.now() + TIME_BUDGET_MS;
+
+  // Start somewhere different each minute so no account is permanently last in the queue
+  // and therefore permanently unread.
+  const offset = Math.floor(Date.now() / 60_000) % ACCOUNTS.length;
+  const order = [...ACCOUNTS.slice(offset), ...ACCOUNTS.slice(0, offset)];
+
   // Sequential: this is a scrape of one host, and parallel requests get it blocked.
   const items: FeedItem[] = [];
-  for (const account of ACCOUNTS) {
+  for (const account of order) {
+    if (Date.now() > deadline) break;
     try {
-      items.push(...(await fetchAccount(account)));
+      items.push(...(await fetchAccount(account, deadline)));
     } catch {
       // One account failing must not lose the others.
     }
