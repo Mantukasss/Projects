@@ -330,15 +330,29 @@ blocks separated by blank lines:
 {one closing fact}
 ```
 
-**What they never do — and this file used to do all four.** No `JUST IN:` or `RUMOR:`
-prefix (zero of eleven); the opening line is a SENTENCE — "ruggah has officially retired
-from coaching after more than a decade in Counter-Strike" — or an attribution — "donk on
-what makes tN1R so good:". No lone emoji on its own line; Ozzny closes the LEAD line with
-one, inline (5/5), cs2files usually none (1/5). No "via @handle" in the body; neither
-credits a source in the text, ever. No link in the body.
+**`JUST IN:` IS USED — for breaking news only. Read this before changing it a third time.**
+The first version stamped `JUST IN:`/`RUMOR:` on everything, quotes and wiki edits included.
+Eleven studied posts contained zero labels, so it was removed entirely. Then a twelfth
+arrived: `JUST IN: Krabeni extended his contract with FUT ‼️`. Both extremes were wrong. The
+label goes on a signing, transfer, contract or roster move — where it tells a reader in two
+words that this just happened — and nowhere else. A quote, a stat, a result, a retirement, a
+schedule all open with a plain sentence. `/api/writeup` returns `breaking` and the label and
+the `‼️` travel together; a quote can never take it, whatever it is about.
 
-**What they always do.** Media on every post. Curly quotation marks. `> ` bullets for a list
-of two or more, never for one line. Lead with the human.
+**What they never do — and this file used to do all three.** No lone emoji on its own line;
+Ozzny closes the LEAD line with one, inline (5/5), cs2files usually none (1/5). No "via
+@handle" in the body; neither credits a source in the text, ever. No link in the body.
+
+**What they always do.** Media on every post. Curly quotation marks. Lead with the human.
+
+`> ` sets an aside apart from the lead, and **a list of one is normal** — the Krabeni post
+carries exactly one, `> 2 weeks ago, dziugss, dem0n & coolio also extended their contracts`.
+An earlier rule here required two or more on the reasoning that a single `>` is a stray
+character; his own posts say otherwise. It is not counting things.
+
+`W or L move?` closes a transfer post. An opinion-inviting question earns replies, and
+replies are what X's ranking rewards — but only where an opinion is genuinely open, never on
+a retirement or a settled result.
 
 `‼️` is used, but only inline at the end of a title headline — "Spirit are your BLAST Porto
 CHAMPIONS 🇵🇹‼️". Anywhere else it reads as punctuation debris.
@@ -381,6 +395,42 @@ only thing that goes with them. Drawn from the handle already in localStorage; t
 
 Their crest treatment is exactly `CrestTile`: cs2files' ruggah post ran the Astralis star
 large and white on solid brand red, filling a 360 square. That was confirmed, not assumed.
+
+### Speed — why a post got beaten, and what was actually wrong
+`@Ozzny_CS2` published Krabeni's FUT extension at **13:46:18**. HLTV's article went up at
+**13:49:00** and `@HLTVorg` tweeted it at **13:49:37**. The app carried the tweet. So it was
+**2m42s behind before it started**, and no amount of polling HLTV could have closed that:
+he was not reading HLTV. Contract and roster news breaks on the ORG'S OWN ACCOUNT, because
+the org controls the announcement, and everyone else reports it afterwards.
+
+Three fixes, in order of how much they matter:
+
+1. **26 first-party org accounts, every handle verified live** (fetched, newest post read back
+   to confirm the account is right and still posting). They are read on EVERY refresh, ahead
+   of the media accounts, in their own time budget — so the accounts that break news are
+   never the ones the budget runs out on.
+2. **The id cache was 300 seconds.** On top of the feed's own 60, that put up to five minutes
+   of staleness between an announcement and the card — longer than the whole margin being
+   chased. First-party accounts now refresh their id list at 60s and read three posts deep
+   instead of six; an announcement is always the newest post, so depth was buying nothing and
+   costing requests. Media accounts keep 300s and six, because nothing breaks there first.
+3. **Dedupe threw away the better copy.** It kept whichever duplicate scored higher and
+   dropped the rest, so the @HLTVorg tweet (empty summary, no photo, unreadable link) beat
+   HLTV's own article (standfirst, photo, URL `/api/detail` can read) on a freshness bonus.
+   It now MERGES: the higher score still sets the ranking and the headline, missing fields are
+   filled from the copy it beat, an HLTV article URL always wins the link, and the timestamp
+   becomes the EARLIEST of the two — a later copy of the same news does not make it newer.
+
+HANDLES THAT DO NOT RESOLVE, so nobody guesses them again: `TheMongolZ`, `TeamSpiritCS`,
+`TeamSpirit`, `NIPGaming`, `TYLOO`, `Team3DMAX`, `AuroraGGTeam`, `SAWesports`,
+`IberianSoulGG`, `YawaraEsports`. Working equivalents found for two of them: `@NIP` and
+`@tyloogaming`. Spirit, The MongolZ, Aurora, 3DMAX and SAW are still missing — worth another
+look, since Spirit in particular is a top-two org whose announcements this app cannot see.
+
+**`@FUT_esports` resolves but the profile embeds only a 2021 post id**, so the scrape cannot
+reach their recent announcements — which is exactly the org in the story above. Some profiles
+embed recent ids and some do not; that is X's choice, not a bug here, and it is the ceiling
+on this technique. Where it bites, the org's news still arrives via HLTV, just later.
 
 ## Current state
 **Translation now covers every language, not just Russian.** `lib/language.ts` decides it;

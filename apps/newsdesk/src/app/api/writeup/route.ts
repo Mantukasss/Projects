@@ -54,7 +54,7 @@ const SYSTEM = [
   "    sentences is ideal; trim to the part that earns the lead, never reword it.",
   "",
   "STORY — something happened and there is no quote worth leading with. Shape:",
-  '{"kind":"story","lead":"...","emoji":"...","background":"...","context":"...","list":[],"people":["..."]}',
+  '{"kind":"story","lead":"...","emoji":"...","breaking":false,"background":"...","context":"...","list":[],"people":["..."]}',
   "  lead — ONE sentence stating the news, in YOUR words, complete on its own.",
   "    GOOD: ruggah has officially retired from coaching after more than a decade in",
   "          Counter-Strike",
@@ -64,6 +64,12 @@ const SYSTEM = [
   "    history, the run-up. This is what makes it reporting rather than an alert.",
   "    GOOD: The Danish coach worked with Dignitas, North, OpTic, OG and most recently",
   "          Astralis, winning EPICENTER with Dignitas along the way.",
+  "",
+  "  breaking — true ONLY for a signing, transfer, contract or roster move that has just",
+  "    happened. It puts \u2018JUST IN:\u2019 in front of the lead, which is right for exactly that",
+  "    and wrong for everything else. A retirement, a result, a quote, a schedule, a stat,",
+  "    an analyst opinion: false. If you are unsure, false — an unlabelled scoop still",
+  "    reads as news, but a label on a stat post reads as an account that labels everything.",
   "",
   "Both shapes also take:",
   "  emoji — DEFAULT TO AN EMPTY STRING. Only return one if the story is unmistakably one",
@@ -78,10 +84,16 @@ const SYSTEM = [
   "    five fits, and reaching for the nearest one is how a trophy ends up on a retirement.",
   "  context — one short closing fact from the source: what it means now, or the number",
   "    that proves the lead. Empty string if there is none.",
-  "  list — ONLY when the source gives two or more PARALLEL items (trophies won, players",
-  "    qualified, a head-to-head of numbers). Each entry one short line, no bullet",
-  '    character. GOOD: ["NiKo: 9","donk: 10"]. Otherwise an empty array.',
+  "  list — asides set apart from the lead. ONE is fine and is the commonest number: a",
+  "    transfer post carries \u2018> 2 weeks ago, dziugss, dem0n and coolio also extended their",
+  "    contracts\u2019. Also used for parallel items — trophies won, a head-to-head of numbers.",
+  "    Each entry one short line, no bullet character, no leading dash.",
+  '    GOOD: ["NiKo: 9","donk: 10"]   GOOD: ["Their third title of the season"]',
+  "    Empty array when the story has no aside worth setting apart.",
   "  people — every player or personality NAMED, nicknames only, speaker first.",
+  "  context — on a transfer or a contract, an opinion-inviting closer works here and is",
+  "    what the accounts worth copying use: \u2018W or L move?\u2019. Only where an opinion is",
+  "    genuinely open — never on a retirement, a death, or a result already decided.",
   "  object — the one ORDINARY, PHOTOGRAPHABLE thing this is about, one or two words, if",
   "    there is one. Not a person, not a team, not an event: a thing you could photograph",
   "    on its own. It becomes the second picture beside the speaker's face.",
@@ -155,6 +167,7 @@ export async function POST(request: Request) {
       quote?: string;
       background?: string;
       context?: string;
+      breaking?: boolean;
       object?: string;
       list?: string[];
       people?: string[];
@@ -186,20 +199,21 @@ export async function POST(request: Request) {
       quote: correctNames((parsed.quote ?? "").trim()),
       background: correctNames((parsed.background ?? "").trim()),
       context: correctNames((parsed.context ?? "").trim()),
+      // Only a story can be breaking. A quote about a transfer is still a quote, and
+      // "JUST IN:" in front of someone's words reads as the account shouting over them.
+      breaking: parsed.breaking === true && kind === "story",
       // Two words at most: it is a search term, and a sentence here means the model
       // described the topic instead of naming a thing.
       object: (() => {
         const object = (parsed.object ?? "").trim();
         return object && object.split(/\s+/).length <= 3 ? object : "";
       })(),
-      // A one-item list is not a list — it would render as a stray "> ". Drop it.
-      list: (() => {
-        const list = (parsed.list ?? [])
-          .map((entry) => correctNames(String(entry).trim().replace(/^[>\-\u2022*]\s*/, "")))
-          .filter(Boolean)
-          .slice(0, 6);
-        return list.length >= 2 ? list : [];
-      })(),
+      // One entry is a valid list — see the prompt. Only the bullet characters a model
+      // adds by habit are stripped, because compose.ts supplies the "> ".
+      list: (parsed.list ?? [])
+        .map((entry) => correctNames(String(entry).trim().replace(/^[>\-\u2022*]\s*/, "")))
+        .filter(Boolean)
+        .slice(0, 6),
       // Nicknames only, deduped — each becomes a photo the post can attach.
       people: [
         ...new Set(

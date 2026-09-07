@@ -63,6 +63,17 @@ interface Account {
   team?: string;
   /** The player who owns this account, where it is a player account — same reasoning. */
   player?: string;
+  /**
+   * True for an account that IS the news rather than reporting it.
+   *
+   * These are read on EVERY refresh, ahead of the media accounts, with a shorter cache.
+   * The reason is a post that got beaten: @Ozzny_CS2 published Krabeni's FUT extension at
+   * 13:46:18, HLTV's article went up at 13:49:00 and their tweet at 13:49:37 — so anything
+   * reading HLTV was nearly three minutes late before it started. Contract and roster news
+   * breaks on the ORG'S OWN ACCOUNT, because the org controls the announcement. Reading the
+   * outlets that report it is reading second.
+   */
+  firstParty?: boolean;
 }
 
 /**
@@ -87,24 +98,76 @@ const ACCOUNTS: Account[] = [
   { handle: "strife_gg", label: "@strife_gg", note: "CS coverage", csOnly: false },
 
   // Players speaking for themselves — the most attributable quote there is.
-  { handle: "s1mpleO", label: "@s1mpleO", note: "first-party", csOnly: true, player: "s1mple" },
-  { handle: "ZywOo", label: "@ZywOo", note: "first-party", csOnly: true, player: "ZywOo" },
-  { handle: "torzsi_", label: "@torzsi_", note: "first-party", csOnly: true, player: "torzsi" },
+  { handle: "s1mpleO", label: "@s1mpleO", note: "first-party", csOnly: true, player: "s1mple", firstParty: true },
+  { handle: "ZywOo", label: "@ZywOo", note: "first-party", csOnly: true, player: "ZywOo", firstParty: true },
+  { handle: "torzsi_", label: "@torzsi_", note: "first-party", csOnly: true, player: "torzsi", firstParty: true },
 
   // Orgs announcing their own business.
-  { handle: "TeamVitality", label: "@TeamVitality", note: "first-party team news", csOnly: true, team: "Team Vitality" },
-  { handle: "natusvincere", label: "@natusvincere", note: "first-party team news", csOnly: true, team: "Natus Vincere" },
-  { handle: "FaZeClan", label: "@FaZeClan", note: "first-party team news", csOnly: true, team: "FaZe Clan" },
-  { handle: "G2esports", label: "@G2esports", note: "first-party team news", csOnly: true, team: "G2 Esports" },
-  { handle: "FURIA", label: "@FURIA", note: "first-party team news", csOnly: true, team: "FURIA Esports" },
-  { handle: "paiNGamingBR", label: "@paiNGamingBR", note: "first-party team news", csOnly: true, team: "paiN Gaming" },
+  /**
+   * EVERY HANDLE HERE WAS VERIFIED, not guessed. Each was fetched and its newest post read
+   * back to confirm the account exists, is the right one, and is still posting. The ones
+   * that did not resolve are listed in CLAUDE.md so nobody guesses them again.
+   */
+  { handle: "TeamVitality", label: "@TeamVitality", note: "first-party team news", csOnly: true, team: "Team Vitality", firstParty: true },
+  { handle: "natusvincere", label: "@natusvincere", note: "first-party team news", csOnly: true, team: "Natus Vincere", firstParty: true },
+  { handle: "FaZeClan", label: "@FaZeClan", note: "first-party team news", csOnly: true, team: "FaZe Clan", firstParty: true },
+  { handle: "G2esports", label: "@G2esports", note: "first-party team news", csOnly: true, team: "G2 Esports", firstParty: true },
+  { handle: "FURIA", label: "@FURIA", note: "first-party team news", csOnly: true, team: "FURIA Esports", firstParty: true },
+  { handle: "paiNGamingBR", label: "@paiNGamingBR", note: "first-party team news", csOnly: true, team: "paiN Gaming", firstParty: true },
+  { handle: "FalconsEsport", label: "@FalconsEsport", note: "first-party team news", csOnly: false, team: "Team Falcons", firstParty: true },
+  { handle: "mousesports", label: "@mousesports", note: "first-party team news", csOnly: true, team: "MOUZ", firstParty: true },
+  { handle: "TeamLiquidCS", label: "@TeamLiquidCS", note: "first-party team news", csOnly: true, team: "Team Liquid", firstParty: true },
+  { handle: "astralisgg", label: "@astralisgg", note: "first-party team news", csOnly: true, team: "Astralis", firstParty: true },
+  { handle: "heroicgg", label: "@heroicgg", note: "first-party team news", csOnly: true, team: "Heroic", firstParty: true },
+  { handle: "Cloud9", label: "@Cloud9", note: "first-party team news", csOnly: false, team: "Cloud9", firstParty: true },
+  { handle: "complexity", label: "@complexity", note: "first-party team news", csOnly: false, team: "Complexity Gaming", firstParty: true },
+  { handle: "BIGCLANgg", label: "@BIGCLANgg", note: "first-party team news", csOnly: false, team: "BIG", firstParty: true },
+  { handle: "imperialesports", label: "@imperialesports", note: "first-party team news", csOnly: false, team: "Imperial Esports", firstParty: true },
+  { handle: "9zTeam", label: "@9zTeam", note: "first-party team news", csOnly: false, team: "9z Team", firstParty: true },
+  { handle: "BetBoomTeam", label: "@BetBoomTeam", note: "first-party team news", csOnly: false, team: "BetBoom Team", firstParty: true },
+  { handle: "virtuspro", label: "@virtuspro", note: "first-party team news", csOnly: false, team: "Virtus.pro", firstParty: true },
+  { handle: "GamerLegion", label: "@GamerLegion", note: "first-party team news", csOnly: true, team: "GamerLegion", firstParty: true },
+  { handle: "FNATIC", label: "@FNATIC", note: "first-party team news", csOnly: false, team: "Fnatic", firstParty: true },
+  { handle: "FlyQuest", label: "@FlyQuest", note: "first-party team news", csOnly: false, team: "FlyQuest", firstParty: true },
+  { handle: "NRGgg", label: "@NRGgg", note: "first-party team news", csOnly: false, team: "NRG Esports", firstParty: true },
+  { handle: "M80gg", label: "@M80gg", note: "first-party team news", csOnly: true, team: "M80", firstParty: true },
+  { handle: "WildcardGaming", label: "@WildcardGaming", note: "first-party team news", csOnly: false, team: "Wildcard Gaming", firstParty: true },
+  { handle: "NIP", label: "@NIP", note: "first-party team news", csOnly: false, team: "Ninjas in Pyjamas", firstParty: true },
+  { handle: "tyloogaming", label: "@tyloogaming", note: "first-party team news", csOnly: false, team: "TYLOO", firstParty: true },
 ];
 
 /**
- * How long one refresh may spend here. Beyond this it returns what it has: a feed that
- * arrives with twelve accounts read beats one that times out having read all seventeen.
+ * How long one refresh may spend here, split so the accounts that BREAK news are never the
+ * ones the budget runs out on.
+ *
+ * The first-party pass goes first and gets most of the time. Media accounts report what the
+ * orgs already said, so being a refresh late on those costs nothing; being a refresh late on
+ * an org's own announcement is the whole margin. Most of both passes is served from the
+ * shared Data Cache anyway — the budget only bites when the cache is cold.
  */
-const TIME_BUDGET_MS = 6000;
+const FIRST_PARTY_BUDGET_MS = 7000;
+const MEDIA_BUDGET_MS = 3000;
+
+/**
+ * How long a profile's list of post ids may be reused.
+ *
+ * This was 300 seconds for everything, which put FIVE MINUTES of staleness on top of the
+ * feed's own 60 — so an org announcement could sit unread for longer than the margin being
+ * chased. First-party accounts now match the feed's own cadence; media accounts keep the
+ * long cache, because nothing breaks there first.
+ */
+const IDS_TTL_FIRST_PARTY = 60;
+const IDS_TTL_MEDIA = 300;
+
+/**
+ * How many posts deep to read per account.
+ *
+ * An announcement is always the newest post, so three is enough for an org and spends a
+ * third of the requests. Media accounts get the full six because a thread of separate
+ * stories is normal there.
+ */
+const DEPTH_FIRST_PARTY = 3;
+const DEPTH_MEDIA = 6;
 
 /** The token X's own embed player derives from a post id. */
 function token(id: string): string {
@@ -120,17 +183,17 @@ interface SyndicationPost {
   mediaDetails?: { media_url_https?: string; type?: string }[];
 }
 
-async function recentIds(handle: string): Promise<string[]> {
+async function recentIds(handle: string, ttl: number, depth: number): Promise<string[]> {
   const res = await fetch(`https://x.com/${handle}`, {
     headers: { "User-Agent": UA },
-    next: { revalidate: 300 },
+    next: { revalidate: ttl },
   });
   if (!res.ok) return [];
   const html = await res.text();
   return [...new Set([...html.matchAll(/status\/(\d{15,})/g)].map((m) => m[1]))]
     .sort()
     .reverse()
-    .slice(0, 6);
+    .slice(0, depth);
 }
 
 async function readPost(id: string): Promise<SyndicationPost | null> {
@@ -151,7 +214,11 @@ function clean(text: string): string {
 }
 
 async function fetchAccount(account: Account, deadline = Infinity): Promise<FeedItem[]> {
-  const ids = await recentIds(account.handle);
+  const ids = await recentIds(
+    account.handle,
+    account.firstParty ? IDS_TTL_FIRST_PARTY : IDS_TTL_MEDIA,
+    account.firstParty ? DEPTH_FIRST_PARTY : DEPTH_MEDIA,
+  );
   const items: FeedItem[] = [];
 
   for (const id of ids) {
@@ -191,23 +258,33 @@ async function fetchAccount(account: Account, deadline = Infinity): Promise<Feed
 }
 
 export async function fetchXPosts(): Promise<FeedItem[]> {
-  const deadline = Date.now() + TIME_BUDGET_MS;
-
-  // Start somewhere different each minute so no account is permanently last in the queue
-  // and therefore permanently unread.
-  const offset = Math.floor(Date.now() / 60_000) % ACCOUNTS.length;
-  const order = [...ACCOUNTS.slice(offset), ...ACCOUNTS.slice(0, offset)];
-
-  // Sequential: this is a scrape of one host, and parallel requests get it blocked.
   const items: FeedItem[] = [];
-  for (const account of order) {
-    if (Date.now() > deadline) break;
-    try {
-      items.push(...(await fetchAccount(account, deadline)));
-    } catch {
-      // One account failing must not lose the others.
+
+  /**
+   * One pass over a group, starting at a rotating offset.
+   *
+   * The offset means no account is permanently last in the queue and therefore permanently
+   * unread when the budget runs out. Sequential because this is a scrape of one host and
+   * parallel requests get it blocked.
+   */
+  const sweep = async (group: Account[], budgetMs: number) => {
+    if (group.length === 0) return;
+    const deadline = Date.now() + budgetMs;
+    const offset = Math.floor(Date.now() / 60_000) % group.length;
+    for (const account of [...group.slice(offset), ...group.slice(0, offset)]) {
+      if (Date.now() > deadline) break;
+      try {
+        items.push(...(await fetchAccount(account, deadline)));
+      } catch {
+        // One account failing must not lose the others.
+      }
     }
-  }
+  };
+
+  // First party first, always. See FIRST_PARTY_BUDGET_MS.
+  await sweep(ACCOUNTS.filter((a) => a.firstParty), FIRST_PARTY_BUDGET_MS);
+  await sweep(ACCOUNTS.filter((a) => !a.firstParty), MEDIA_BUDGET_MS);
+
   if (items.length === 0) throw new Error("no X posts readable — the scrape may have broken");
   return items;
 }

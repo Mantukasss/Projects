@@ -19,11 +19,19 @@ import { brandOf } from "./teams";
  *
  * WHAT THEY NEVER DO, each of which this file used to:
  *
- *  - NO "JUST IN:" or "RUMOR:" prefix. Zero of eleven. The opening line is a SENTENCE that
- *    states the news — "ruggah has officially retired from coaching after more than a
- *    decade in Counter-Strike" — or an attribution — "donk on what makes tN1R so good:".
- *    A label in front of a headline is what an aggregator writes; a sentence is what a
- *    publication writes, and the difference is visible at a glance in a timeline.
+ *  - NO "JUST IN:" ON MOST POSTS, and this is a CORRECTION of a correction, so read it
+ *    carefully before changing it again.
+ *      The first version of this file stamped "JUST IN:" or "RUMOR:" on EVERYTHING —
+ *      quotes, wiki edits, results. Reading eleven of their posts found zero labels, so it
+ *      was removed entirely. Then a twelfth arrived: "JUST IN: Krabeni extended his contract
+ *      with FUT ‼️". So he does use it — for BREAKING NEWS ONLY. A signing, a transfer, a
+ *      contract, a roster move: things where the label is doing real work, telling a reader
+ *      in two words that this just happened.
+ *      Everything else opens with a plain SENTENCE — "ruggah has officially retired from
+ *      coaching after more than a decade in Counter-Strike" — or an attribution — "donk on
+ *      what makes tN1R so good:". A label on a quote or a stat post is what an aggregator
+ *      writes; a sentence is what a publication writes.
+ *      Neither extreme was right. The write-up decides which this is.
  *  - NO lone emoji on its own line at the end. Ozzny closes the LEAD line with one emoji,
  *    inline (five of five: 🥶 😭 😭 🇵🇹‼️ 💀); cs2files mostly uses none (one of five). An
  *    emoji parked on its own line is a tell that a script wrote the post.
@@ -47,6 +55,15 @@ import { brandOf } from "./teams";
  * anywhere else.
  */
 const MARK = "\u203C\uFE0F";
+
+/**
+ * The prefix on a breaking-news post, and ONLY on one.
+ *
+ * See the note at the top of this file: it was on everything, then on nothing, and both were
+ * wrong. Ozzny writes "JUST IN: Krabeni extended his contract with FUT ‼️" for a contract,
+ * and a plain sentence for a quote, a stat or a result. The label and the shout go together.
+ */
+const BREAKING = "JUST IN:";
 
 /**
  * The emoji that closes a lead line when the write-up did not choose one.
@@ -152,11 +169,17 @@ function firstSentences(text: string, budget: number): string {
 function layout(lead: string, blocks: (string | string[])[]): string {
   const parts = [lead.trim()];
   for (const block of blocks) {
-    // An array is a list, and a list gets Ozzny's "> " bullets — but only at two or more.
-    // One "> " line is not a list, it is a stray character.
+    /**
+     * An array is a list, and every entry gets Ozzny's "> " bullet — including a list of one.
+     *
+     * This said "two or more" on the reasoning that a single "> " is a stray character. His
+     * own post says otherwise: "JUST IN: Krabeni extended his contract with FUT ‼️" is
+     * followed by exactly one "> 2 weeks ago, dziugss, dem0n & coolio also extended their
+     * contracts". The marker is not counting things — it is setting an aside apart from the
+     * lead, and one aside is the commonest number of asides.
+     */
     if (Array.isArray(block)) {
-      if (block.length >= 2) parts.push(block.map((line) => `> ${line}`).join("\n"));
-      else if (block.length === 1) parts.push(block[0]);
+      if (block.length > 0) parts.push(block.map((line) => `> ${line}`).join("\n"));
     } else if (block.trim()) {
       parts.push(block.trim());
     }
@@ -173,6 +196,8 @@ function layout(lead: string, blocks: (string | string[])[]): string {
  */
 function close(lead: string, emoji: string, shout = false): string {
   const text = lead.trim();
+  // The shout survives an empty emoji: "JUST IN:" and "‼️" are a pair, and a breaking post
+  // that kept the label but lost the shout reads like the second half went missing.
   const tail = shout ? `${emoji}${MARK}` : emoji;
   /**
    * An emoji ends the line, so the full stop in front of it is redundant — Ozzny writes
@@ -388,6 +413,13 @@ export interface Writeup {
   background: string;
   /** The closing fact — what it means now, or the number that proves the lead. */
   context: string;
+  /**
+   * True when this is a signing, transfer, contract or roster move that JUST happened.
+   *
+   * The one case that earns "JUST IN:" and the double-exclamation. See the note at the top
+   * of this file — the label was on everything, then on nothing, and both were wrong.
+   */
+  breaking: boolean;
   /** Two or more parallel items, rendered as Ozzny's "> " list. */
   list: string[];
   /**
@@ -419,7 +451,18 @@ export function composeFromWriteup(item: FeedItem, writeup: Writeup): Draft {
    * wearing 👀 whatever it was about. cs2files leaves the emoji off four posts in five. The
    * fallback belongs on a bare headline, which has nobody to make the judgement.
    */
-  const lead = close(writeup.lead, writeup.emoji, item.kind === "result");
+  /**
+   * "JUST IN:" and the double-exclamation, together, on breaking news only.
+   *
+   * Ozzny's own pairing: "JUST IN: Krabeni extended his contract with FUT ‼️". The label
+   * opens it and the shout closes it, and he uses both or neither.
+   */
+  const breaking = writeup.breaking && writeup.kind === "story";
+  const lead = close(
+    breaking ? `${BREAKING} ${writeup.lead}` : writeup.lead,
+    writeup.emoji,
+    breaking || item.kind === "result",
+  );
 
   const body =
     writeup.kind === "quote"
@@ -538,9 +581,14 @@ const TRAILING_EMOJI = new RegExp(
  */
 export function setLeadEmoji(body: string, emoji: string): string {
   const [first, ...rest] = body.split("\n");
-  const shout = TRAILING_EMOJI.exec(first)?.[0].includes(MARK) ?? false;
+  // A breaking post keeps its shout whichever emoji is chosen; the label and the "‼️" are
+  // a pair, so losing one and keeping the other would read as a mistake.
+  const shout =
+    (TRAILING_EMOJI.exec(first)?.[0].includes(MARK) ?? false) || first.startsWith(BREAKING);
   const bare = first.replace(TRAILING_EMOJI, "").replace(/\s+$/, "");
-  return [close(bare, emoji, Boolean(emoji) && shout), ...rest].join("\n");
+  // The shout is unconditional on a breaking post — see close(). Gating it on the emoji
+  // meant choosing "no emoji" also quietly deleted the "‼️" that pairs with "JUST IN:".
+  return [close(bare, emoji, shout), ...rest].join("\n");
 }
 
 /** X counts a post at 280 characters for a free account; Premium raises the ceiling. */
