@@ -11,6 +11,7 @@ import {
   IconPencil,
   IconPhotoPlus,
   IconQuote,
+  IconShare,
 } from "@tabler/icons-react";
 import type { FeedItem } from "@/lib/types";
 import {
@@ -259,6 +260,39 @@ export default function ItemCard({
   };
 
   /**
+   * The two finished squares, as files, handed up by PostImages.
+   *
+   * Held here rather than there because the share needs the words and the pictures in the
+   * same call, and the words live on this card.
+   */
+  const [images, setImages] = useState<File[]>([]);
+
+  /**
+   * Text AND both pictures into X, in one tap.
+   *
+   * This is the whole flow — save two images, switch app, find them in the camera roll,
+   * attach, paste — collapsed into a single system share sheet. `navigator.share` with
+   * files is what makes it possible; X's share target accepts text plus images.
+   *
+   * Guarded on `canShare` because it is a mobile capability: desktop browsers mostly refuse
+   * files, and Firefox refuses outright. Where it is missing the card simply does not offer
+   * the button and the Open in X route below still works. A cancelled sheet throws
+   * AbortError, which is a user saying no, not a failure to report.
+   */
+  const shareable =
+    images.length > 0 &&
+    typeof navigator !== "undefined" &&
+    Boolean(navigator.canShare?.({ files: images, text: draft.body }));
+
+  const shareToX = async () => {
+    try {
+      await navigator.share({ text: draft.body, files: images });
+    } catch {
+      // Cancelled, or the target refused it. The buttons below are still there.
+    }
+  };
+
+  /**
    * Opens X's composer with the post already in it.
    *
    * `x.com/intent/post?text=` is a public URL, no key and no API: verified live, and on iOS
@@ -341,6 +375,7 @@ export default function ItemCard({
         person={writeup?.people?.[0] ?? item.playerName ?? null}
         second={writeup?.people?.[1] ?? null}
         teamPage={item.teamPage ?? null}
+        onReady={setImages}
         wiki={item.source === "vlr" ? "valorant" : "counterstrike"}
       />
 
@@ -585,13 +620,30 @@ export default function ItemCard({
 
       {/* One tap to publish: the text goes to the clipboard AND to X's composer. Everything
           else on this row is a fallback for when that is not what you want. */}
+      {shareable && (
+        <button
+          onClick={shareToX}
+          disabled={blocked}
+          className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-amber font-medium text-black transition-colors duration-150 ease-out disabled:opacity-40"
+        >
+          <IconShare size={18} stroke={1.5} />
+          {blocked
+            ? "Fix the post first"
+            : `Share to X — text + ${images.length} image${images.length > 1 ? "s" : ""}`}
+        </button>
+      )}
+
       <button
         onClick={openComposer}
         disabled={blocked}
-        className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-amber font-medium text-black transition-colors duration-150 ease-out disabled:opacity-40"
+        className={`flex min-h-11 w-full items-center justify-center gap-2 rounded-md transition-colors duration-150 ease-out disabled:opacity-40 ${
+          shareable
+            ? "mt-2 border border-border text-sm text-text-muted hover:text-text"
+            : "mt-4 bg-amber font-medium text-black"
+        }`}
       >
         <IconBrandX size={18} stroke={1.5} />
-        {blocked ? "Fix the post first" : "Open in X — text ready"}
+        {blocked ? "Fix the post first" : shareable ? "Open in X — text only" : "Open in X — text ready"}
       </button>
 
       <div className="mt-2 grid grid-cols-2 gap-2">

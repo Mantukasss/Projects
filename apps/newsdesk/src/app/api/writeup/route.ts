@@ -56,7 +56,8 @@ const SYSTEM = [
   "STORY — something happened and there is no quote worth leading with. Shape:",
   '{"kind":"story","lead":"...","emoji":"...","background":"...","context":"...","list":[],"people":["..."]}',
   "  lead — ONE sentence stating the news, in YOUR words, complete on its own.",
-  "    GOOD: ruggah has officially retired from coaching after more than a decade in CS",
+  "    GOOD: ruggah has officially retired from coaching after more than a decade in",
+  "          Counter-Strike",
   "    BAD:  JUST IN: ruggah retires",
   "    The bad one is a label plus a headline. Write the sentence a publication writes.",
   "  background — one paragraph of what a reader needs in order to care: the career, the",
@@ -65,10 +66,16 @@ const SYSTEM = [
   "          Astralis, winning EPICENTER with Dignitas along the way.",
   "",
   "Both shapes also take:",
-  "  emoji — ONE emoji closing the lead line, picked for the tone of THIS story. Empty",
-  "    string if none fits, which is better than a wrong one.",
-  "    \uD83D\uDE2D a player being candid or emotional \u00B7 \uD83D\uDC80 someone getting humiliated",
-  "    \uD83E\uDD76 a number nobody expected \u00B7 \uD83D\uDC40 a reveal or a comparison \u00B7 \uD83C\uDFC6 a title won",
+  "  emoji — DEFAULT TO AN EMPTY STRING. Only return one if the story is unmistakably one",
+  "    of the five cases below. A wrong emoji is worse than none: it tells the reader the",
+  "    account did not read its own post. If you are choosing between two, return \"\".",
+  "    \uD83D\uDE2D  ONLY when someone is being candid about something hard",
+  "    \uD83D\uDC80  ONLY when someone is being beaten badly or mocked",
+  "    \uD83E\uDD76  ONLY when the post is built around a number nobody expected",
+  "    \uD83D\uDC40  ONLY when something previously unknown is being revealed or compared",
+  "    \uD83C\uDFC6  ONLY when a trophy has JUST been won by the subject of this post",
+  "    A retirement, a transfer, a schedule, a ban, an injury: empty string. None of the",
+  "    five fits, and reaching for the nearest one is how a trophy ends up on a retirement.",
   "  context — one short closing fact from the source: what it means now, or the number",
   "    that proves the lead. Empty string if there is none.",
   "  list — ONLY when the source gives two or more PARALLEL items (trophies won, players",
@@ -91,6 +98,17 @@ const SYSTEM = [
   "  do not know one exactly, leave the name as the source wrote it.",
   ...glossaryLines(),
 ].join("\n");
+
+/**
+ * The only emoji this route may return.
+ *
+ * The prompt asks for one of five and the model still answered 🏆 to a retirement story,
+ * live. Instruction alone does not hold here, so the set is enforced: an emoji outside it is
+ * dropped, and the post goes out plain — which is what four of five cs2files posts do anyway.
+ * This does not stop a WRONG choice from inside the set; the prompt's job is that, and the
+ * cost is one character to delete.
+ */
+const ALLOWED_EMOJI = new Set(["😭", "💀", "🥶", "👀", "🏆"]);
 
 export async function POST(request: Request) {
   if (!hasLlmKey()) {
@@ -146,7 +164,9 @@ export async function POST(request: Request) {
      * dropped rather than shipped into the first line of a post.
      */
     const emoji = (parsed.emoji ?? "").trim();
-    const usableEmoji = [...emoji].length <= 3 && !/[\p{L}\p{N}]/u.test(emoji) ? emoji : "";
+    // Only the five the prompt documents. Anything else — a word, three emoji, a flag it
+    // liked the look of — is dropped rather than shipped into the first line of a post.
+    const usableEmoji = ALLOWED_EMOJI.has(emoji) ? emoji : "";
 
     return NextResponse.json({
       kind,

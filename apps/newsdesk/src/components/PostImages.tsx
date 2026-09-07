@@ -149,12 +149,21 @@ export default function PostImages({
   second,
   teamPage,
   wiki,
+  onReady,
 }: {
   person: string | null;
   /** The other person in the story, when there is one. Takes the second slot from the crest. */
   second: string | null;
   teamPage: string | null;
   wiki: "counterstrike" | "valorant";
+  /**
+   * Hands the finished squares up as files, so the card can share them with the text.
+   *
+   * The whole flow — save two pictures, switch app, find them in the camera roll, attach —
+   * collapses into one tap if the browser can share files, and this is what makes that
+   * possible. Called with an empty array when nothing exported.
+   */
+  onReady?: (files: File[]) => void;
 }) {
   /**
    * HLTV's press photo when they have one, Liquipedia's otherwise.
@@ -217,9 +226,52 @@ export default function PostImages({
   const showFace2 = Boolean(secondSrc) && face2.state !== "empty";
   // A second face wins the slot; the crest only fills it when there is no second face.
   const showCrest = !showFace2 && Boolean(crestSrc) && crest.state !== "empty";
-  if (!showPhoto && !showFace2 && !showCrest) return null;
-
   const both = showPhoto && (showFace2 || showCrest);
+
+  /**
+   * Turns the exported squares into files for the share sheet.
+   *
+   * Runs before the early return below, because a hook that only sometimes runs is a React
+   * error rather than a subtle bug. The data URLs are the dependency: a redraw produces a
+   * new one, and the files follow.
+   */
+  const leftUrl = showPhoto ? photo.url : null;
+  const rightUrl = showFace2 ? face2.url : showCrest ? crest.url : null;
+  const leftName = person ?? "photo";
+  const rightName = (showFace2 ? second : teamPage) ?? "second";
+
+  useEffect(() => {
+    if (!onReady) return;
+    let cancelled = false;
+    const wanted = [
+      [leftUrl, leftName] as const,
+      [rightUrl, rightName] as const,
+    ].filter((pair): pair is readonly [string, string] => Boolean(pair[0]));
+
+    if (wanted.length === 0) {
+      onReady([]);
+      return;
+    }
+    Promise.all(
+      wanted.map(async ([url, name]) => {
+        const blob = await (await fetch(url)).blob();
+        return new File([blob], `${name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.png`, {
+          type: "image/png",
+        });
+      }),
+    )
+      .then((files) => {
+        if (!cancelled) onReady(files);
+      })
+      .catch(() => {
+        if (!cancelled) onReady([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [leftUrl, rightUrl, leftName, rightName, onReady]);
+
+  if (!showPhoto && !showFace2 && !showCrest) return null;
 
   /**
    * Saves both squares in one tap.
