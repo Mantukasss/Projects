@@ -80,10 +80,15 @@ export async function GET(request: Request) {
      * Russian post says Соколов, the matcher looks for "Falcons", and without the swap a
      * post plainly about a team resolved to no team at all — leaving it with nothing but a
      * game capsule for company. Liquipedia items are already about a team page.
+     *
+     * A source that already knows the subject keeps it. An X post's author IS its subject
+     * — a FURIA announcement naming its next opponent read as a GamerLegion story — and
+     * reading the text can only ever be a guess where the source has a fact.
      */
     const searchable = correctNames(`${item.title} ${item.summary}`);
-    const teamPage = item.source === "liquipedia" ? item.title : teamInText(searchable);
-    const playerName = playerInText(correctNames(item.title));
+    const teamPage =
+      item.teamPage ?? (item.source === "liquipedia" ? item.title : teamInText(searchable));
+    const playerName = item.playerName ?? playerInText(correctNames(item.title));
     const itemName = itemNameIn(item.title);
     return {
       ...flagged,

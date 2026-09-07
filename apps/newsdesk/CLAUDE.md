@@ -105,6 +105,26 @@ and the app gains Google sign-in copied from `apps/hub`.
   and only the fallback. Editorial is keyed to whoever the HEADLINE names: keying to every
   link meant one match report attached its photo to all ten players in it, so apEX, MOUZ and
   Spirit all resolved to the same picture.
+- **"Is it foreign?" is not an alphabet question.** The first version asked only whether the
+  text contained Cyrillic, so a FURIA post reading "Já temos data marcada para voltar ao
+  servidor!" went out untranslated — Portuguese is written in the same alphabet as English.
+  Half the orgs worth following post in Portuguese, Spanish or French. `lib/language.ts` now
+  runs two tests: unreadable SCRIPT (Cyrillic, Greek, Arabic, Hebrew, CJK, Thai, Korean),
+  and FUNCTION WORDS for Latin-alphabet languages — "para", "nous", "und", "för". Two hits
+  required, because one foreign word appears in English posts and a Translate button on an
+  English post trains the eye to ignore it. Content words are useless here: CS posts are
+  mostly names, and names travel. Diacritics deliberately do not count — "Håvard" and
+  "Zörter" are English-post material. Verified against the live feed: 3 of 60 flagged, all
+  three genuinely foreign, no false positives. Words that collide with English are excluded
+  by hand — German "die", Polish "do", Danish "at" — check before adding one.
+- **The translator is never told which language it is reading.** Portuguese and Spanish share
+  most of their function words, so labelling would mean guessing, and a model handed a wrong
+  language label follows the label instead of the text. It gets the text and works it out.
+- **An X post's subject is its AUTHOR, not what the text names.** That FURIA post named only
+  its next opponent, so reading the team out of the text put the GamerLegion crest on FURIA's
+  own announcement. `xPosts.ts` carries `team`/`player` per account and sets them on the item;
+  the feed uses `item.teamPage ?? teamInText(...)`. Where a source knows a fact, reading the
+  text can only be a guess.
 - **A Russian source image is never offered, at any position.** It was kept last on the
   reasoning that it is sometimes the only picture of a moment; it is not. It is a graphic
   the audience cannot read wearing another outlet's watermark, and it will not be posted, so
@@ -144,8 +164,6 @@ and the app gains Google sign-in copied from `apps/hub`.
   headlines actually use — `nick: "quote"` and `nick <verb>` — rather than trying to hold a
   list of thousands of players whose churn is itself the news. A wrong guess costs nothing:
   `/api/photo` 404s and the post falls back to the crest.
-- **The card is built from the translated item, not the row's original.** `onMakeCard`
-  hands back the effective source, or an English card would come out carrying Russian.
 - **Groq's model is discovered at runtime, never hardcoded.** A hardcoded, plausible-looking
   name was not in Groq's lineup and every call failed. `/api/translate` asks Groq what it
   serves and prefers the smallest capable chat model.
@@ -232,6 +250,12 @@ nothing if it went out labelled a rumour. Attribution lives in the media and in 
 never in the body.
 
 ## Current state
+**Translation now covers every language, not just Russian.** `lib/language.ts` decides it;
+`/api/translate` takes any source language and is never told which. Verified against the live
+feed: 3 of 60 items flagged (two Portuguese X posts, one Russian Twitch title), 57 English
+items untouched. First-party X posts now carry the crest of the account that POSTED them
+rather than of whatever team the text happens to name.
+
 **Live at https://mantas-newsdesk.vercel.app** and verified there: the deployed `/api/feed`
 returns 13 ranked items with no source errors, so both HLTV and Liquipedia answer Vercel's
 datacenter IPs — the open risk before deploying, since Liquipedia rate-limits by IP.
@@ -317,6 +341,8 @@ three). The route is Twitch clips, which needs a free Twitch app (client id + se
 one meaningful source still missing.
 
 ## Next
+- Verify the widened translation on the live deployment — the LLM keys are only in Vercel, so
+  the new prompt could not be exercised locally. Open a Portuguese X card and translate it.
 - Deploy: run `node apps/hub/scripts/setup-vercel-project.mjs --repo projects --name mantas-newsdesk --slug newsdesk`, then fix the real URL in `apps/hub/config/apps.json`.
 - Add `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET` to the Vercel project to turn the Twitch source on. The code is wired and reports "Twitch keys not configured" until they exist.
 - Translate and classify the Russian Telegram posts. Needs a free `GROQ_API_KEY` or `GEMINI_API_KEY` added to the Vercel project — neither is set today, which is why `looksLikeNews` is a regex rather than comprehension.

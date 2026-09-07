@@ -25,6 +25,7 @@ import CrestTile from "./CrestTile";
 import PostImages from "./PostImages";
 import ResultCard from "./ResultCard";
 import { parseResult } from "@/lib/results";
+import { needsTranslation as isForeignLanguage } from "@/lib/language";
 
 const SOURCE_TONE: Record<FeedItem["source"], string> = {
   hltv: "text-amber",
@@ -161,8 +162,9 @@ export default function ItemCard({
     setRetryNonce((n) => n + 1);
   };
 
-  // Cyrillic in the text means this needs translating before it can go out in English.
-  const needsTranslation = /[\u0400-\u04FF]/.test(`${item.title} ${item.summary}`);
+  // Not English means it cannot go out as written. See lib/language.ts for how that is
+  // judged — a Portuguese post from FURIA reads as English to any alphabet-based test.
+  const needsTranslation = isForeignLanguage(`${item.title} ${item.summary}`);
 
   const translate = async () => {
     setTranslating(true);
@@ -184,8 +186,8 @@ export default function ItemCard({
   };
 
   // Once the detail is loaded the draft carries the list or the figure; until then it is
-  // the bare headline. A translated post replaces the headline entirely — the Russian is
-  // never what goes out.
+  // the bare headline. A translated post replaces the headline entirely — the original
+  // language is never what goes out.
   const source = translated ? { ...item, title: translated, summary: "" } : item;
   const written = writeup
     ? composeFromWriteup(source, writeup)
@@ -197,9 +199,9 @@ export default function ItemCard({
    * Words from the translated item, pictures from the original.
    *
    * Translating a post does not translate the text burned into its screenshot, but planning
-   * media from the translated item made it look as though it had: the Russian caution
-   * disappeared and the English card stopped being offered, on a post whose picture was
-   * still entirely in Russian.
+   * media from the translated item made it look as though it had: the foreign-text caution
+   * disappeared the moment the words were translated, on a post whose picture still carried
+   * the original language burned into it.
    */
   const media = planMedia(item, writeup?.people ?? []);
   const draft = { ...written, images: media.options, needsCard: media.needsCard };
@@ -400,9 +402,9 @@ export default function ItemCard({
         {attachmentCount >= 2
           ? `${attachmentCount} images ready — attach two.`
           : needsTranslation
-            ? "The source picture carries Russian text. Build the English image, or pick another below."
-            : draft.needsCard
-              ? "No picture of its own. Build the image — it draws the quote over the player's photo."
+            ? "The source picture carries text your audience cannot read. Pick another below."
+              : draft.needsCard
+                ? "No picture of its own — attach a player photo and the team crest."
               : "One image. Build a second so the post reads as an event, not a caption."}
       </p>
 
@@ -433,7 +435,7 @@ export default function ItemCard({
           className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-teal px-3 text-sm text-teal transition-colors duration-150 ease-out disabled:opacity-50"
         >
           <IconLanguage size={18} stroke={1.5} />
-          {translating ? "Translating…" : "Russian — translate to English"}
+          {translating ? "Translating…" : "Not English — translate it"}
         </button>
       )}
 
@@ -441,7 +443,7 @@ export default function ItemCard({
         <p className="mt-2 rounded-md border border-amber/40 px-3 py-2 text-xs text-amber">
           Check every name against the source before posting. Nicknames are stylised and a
           translator cannot derive them — this one knows the common ones and leaves the rest
-          in Cyrillic rather than guessing.
+          in the original spelling rather than guessing.
         </p>
       )}
 
@@ -468,7 +470,7 @@ export default function ItemCard({
       {!hasMedia && (
         <p className="mt-3 text-sm text-coral">
           {needsTranslation
-            ? "The source picture is Russian text your audience cannot read, so it is not attached. Make the English card."
+            ? "Translate it first, then attach two pictures — this cannot go out as written."
             : "Needs two images. One reads as a caption; two read as an event."}
         </p>
       )}
