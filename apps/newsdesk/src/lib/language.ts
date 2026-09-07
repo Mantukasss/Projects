@@ -40,14 +40,20 @@ const FOREIGN_SCRIPT =
  */
 const FUNCTION_WORDS = [
   // Portuguese — FURIA, paiN, Imperial, Legacy, Fluxo, MIBR.
-  "já", "não", "temos", "para", "com", "uma", "nós", "que", "dos", "das", "mais",
+  "já", "não", "nao", "temos", "para", "com", "uma", "nós", "que", "dos", "das", "mais",
   "hoje", "vamos", "está", "sua", "seu", "pelo", "pela", "nosso", "nossa", "sobre",
+  "é", "são", "foi", "vou", "sou", "nem", "muito", "tudo", "agora", "ainda", "porque",
+  "quando", "obrigado", "valeu", "aqui", "meu", "minha", "ele", "ela", "isso", "também",
+  "só", "até", "então", "onde",
   // Spanish — 9z, Leviatán, KRÜ, BESTIA.
   "los", "las", "del", "por", "más", "con", "hoy", "nuestro", "nuestra", "equipo", "ya",
+  "pero", "cuando", "donde", "ahora", "todo", "muy", "gracias", "somos", "sus", "sin",
   // French — Vitality, Falcons' French-language posts, 3DMAX.
   "les", "des", "pour", "avec", "nous", "notre", "est", "sur", "très", "cette", "aussi",
+  "était", "sont", "ont", "cela", "chez", "leur", "bien", "merci", "toujours",
   // German — BIG, Eternal Fire's German posts.
   "der", "das", "und", "für", "nicht", "mit", "ein", "eine", "wir", "ist", "auch",
+  "aber", "haben", "sind", "sich", "noch", "sehr", "danke", "heute",
   // Nordic — Astralis, Heroic, NiP, Fnatic.
   "och", "för", "att", "är", "ikke", "inte", "med", "har", "vores", "vår",
   "vi", "er", "til", "og", "af", "eller", "kan",
