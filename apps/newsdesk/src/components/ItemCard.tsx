@@ -21,6 +21,8 @@ import {
   composeWithDetail,
   planMedia,
   postLength,
+  LEAD_EMOJI,
+  setLeadEmoji,
   type Writeup,
 } from "@/lib/compose";
 import CrestTile from "./CrestTile";
@@ -158,6 +160,7 @@ export default function ItemCard({
     }
   };
   const [retryNonce, setRetryNonce] = useState(0);
+  const [leadEmoji, chooseLeadEmoji] = useState<string | null>(null);
 
   const retryImages = () => {
     setDeadImages([]);
@@ -206,7 +209,18 @@ export default function ItemCard({
    * the original language burned into it.
    */
   const media = planMedia(item, writeup?.people ?? []);
-  const draft = { ...written, images: media.options, needsCard: media.needsCard };
+
+  /**
+   * The emoji closing the lead line, when you have overruled the draft.
+   *
+   * A tap rather than a setting, because it is a judgement about THIS story and the model is
+   * measurably bad at it — asked to write up a retirement it returned a trophy, live, with
+   * the prompt naming that exact mistake. The prompt now errs towards none, which is right
+   * four posts in five for cs2files but wrong for Ozzny, who closes every lead with one. One
+   * tap settles it, and a person reading the draft is never wrong about the tone.
+   */
+  const body = leadEmoji === null ? written.body : setLeadEmoji(written.body, leadEmoji);
+  const draft = { ...written, body, images: media.options, needsCard: media.needsCard };
 
   // A post whose headline promises a list or a number it does not contain must not be
   // copyable. The block is easier to fix than to bypass — one tap loads the detail.
@@ -341,6 +355,26 @@ export default function ItemCard({
       <pre className="whitespace-pre-wrap break-words font-sans text-base text-text">
         {draft.body}
       </pre>
+
+      {/* The tone of the first line, in one tap. See leadEmoji above for why this is not
+          left to the model. */}
+      <div className="mt-2 flex flex-wrap gap-1">
+        {LEAD_EMOJI.map((option) => {
+          const active = leadEmoji === option.emoji;
+          return (
+            <button
+              key={option.label}
+              onClick={() => chooseLeadEmoji(active ? null : option.emoji)}
+              title={option.label}
+              className={`min-h-8 rounded-md border px-2 py-1 text-sm transition-colors duration-150 ease-out ${
+                active ? "border-amber text-amber" : "border-border text-text-low hover:text-text-muted"
+              }`}
+            >
+              {option.emoji || <span className="text-xs">no emoji</span>}
+            </button>
+          );
+        })}
+      </div>
 
       <p className="mt-2 text-xs text-text-low">
         {postLength(draft.body)} chars

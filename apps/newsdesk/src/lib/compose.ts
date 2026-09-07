@@ -174,7 +174,12 @@ function layout(lead: string, blocks: (string | string[])[]): string {
 function close(lead: string, emoji: string, shout = false): string {
   const text = lead.trim();
   const tail = shout ? `${emoji}${MARK}` : emoji;
-  if (tail) return `${text} ${tail}`;
+  /**
+   * An emoji ends the line, so the full stop in front of it is redundant — Ozzny writes
+   * "...after MOUZ did the comeback on Mirage 😭", never "...on Mirage. 😭". A colon,
+   * question mark or exclamation is doing work the emoji does not, so those stay.
+   */
+  if (tail) return `${text.replace(/\.$/, "")} ${tail}`;
   /**
    * No emoji means the lead is a sentence, and cs2files ends those with a full stop —
    * "ruggah has officially retired from coaching after more than a decade in Counter-Strike."
@@ -488,6 +493,45 @@ function sourceReply(item: FeedItem): string {
    */
   const handle = SOURCE_HANDLE[item.source];
   return `Source: ${handle ?? SOURCE_NAME[item.source]}\n${item.url}`;
+}
+
+/**
+ * The five emoji a post may close its lead line with, in Ozzny's own vocabulary.
+ *
+ * Offered as taps rather than left to the model. Which one fits is a judgement about tone,
+ * and the model is measurably bad at it — asked to write up a RETIREMENT it returned a
+ * trophy, live, with the prompt naming that exact mistake. A person reading the draft gets
+ * it right every time and it costs them one tap, so the tap is the feature and the model's
+ * pick is only a starting point.
+ */
+export const LEAD_EMOJI = [
+  { emoji: "", label: "none" },
+  { emoji: "😭", label: "candid" },
+  { emoji: "💀", label: "brutal" },
+  { emoji: "🥶", label: "a big number" },
+  { emoji: "👀", label: "a reveal" },
+  { emoji: "🏆", label: "a title" },
+] as const;
+
+const TRAILING_EMOJI = new RegExp(
+  `(?:\\s*(?:${LEAD_EMOJI.filter((o) => o.emoji)
+    .map((o) => o.emoji)
+    .join("|")}|${MARK}))+$`,
+  "u",
+);
+
+/**
+ * Swaps the emoji closing the post's first line.
+ *
+ * Operates on the finished body rather than on the write-up, so it works the same on a draft
+ * the model wrote and on a bare headline that never went near one. Only the first line is
+ * touched — an emoji inside a quote is the speaker's, not ours.
+ */
+export function setLeadEmoji(body: string, emoji: string): string {
+  const [first, ...rest] = body.split("\n");
+  const shout = TRAILING_EMOJI.exec(first)?.[0].includes(MARK) ?? false;
+  const bare = first.replace(TRAILING_EMOJI, "").replace(/\s+$/, "");
+  return [close(bare, emoji, Boolean(emoji) && shout), ...rest].join("\n");
 }
 
 /** X counts a post at 280 characters for a free account; Premium raises the ceiling. */

@@ -175,6 +175,16 @@ and the app gains Google sign-in copied from `apps/hub`.
   headlines actually use — `nick: "quote"` and `nick <verb>` — rather than trying to hold a
   list of thousands of players whose churn is itself the news. A wrong guess costs nothing:
   `/api/photo` 404s and the post falls back to the crest.
+- **Groq's free tier is 8,000 tokens per MINUTE, and write-ups hit it.** Five write-ups in
+  quick succession returned `429 ... on tokens per minute (TPM): Limit 8000`. Nothing is
+  broken; the card shows the message and the next one works. Worth knowing before blaming
+  the app for a write-up that failed in a burst.
+- **Model output carries characters nobody types.** Live write-ups came back with
+  "Counter‑Strike" and "2‑1" using U+2011, the non-breaking hyphen — visually near-identical,
+  and one of the quiet tells that a post was machine-written. `correctNames` normalises those
+  plus no-break/thin spaces and zero-width junk. Curly apostrophes and quotation marks are
+  deliberately left alone: both studied accounts use them, and straight quotes are the tell
+  in the other direction.
 - **Groq's model is discovered at runtime, never hardcoded.** A hardcoded, plausible-looking
   name was not in Groq's lineup and every call failed. `/api/translate` asks Groq what it
   serves and prefers the smallest capable chat model.
@@ -239,6 +249,14 @@ in our own words, the quote verbatim, then a closing fact.
 line one.** Neither studied account does that in any post. They say what the quote is ABOUT
 and let you read it: the lead is a promise and the quote is the payoff, and opening with the
 payoff spends it. The model now writes the lead and never touches the quote.
+
+**The emoji is a TAP, not a model call — and that was learned the hard way.** Asked to write
+up a RETIREMENT the live model returned 🏆, with the prompt naming that exact mistake in the
+line above. The prompt now defaults to none and lists the cases that do not qualify (verified
+live: retirement, transfer and a schedule all come back empty), the route enforces an
+allowlist of the five documented emoji, and the card offers those five as chips so the person
+reading the draft settles it in one tap. An allowlist cannot stop a wrong choice from inside
+the set; only a human can, so a human does.
 
 **It also picks the emoji, including picking none.** Which emoji fits is a judgement about
 tone that needs the story — 😭 candid, 💀 humiliating, 🥶 an unexpected number. There used to
