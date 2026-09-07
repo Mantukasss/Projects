@@ -29,6 +29,7 @@ import CrestTile from "./CrestTile";
 import PostImages from "./PostImages";
 import ResultCard from "./ResultCard";
 import { parseResult } from "@/lib/results";
+import { objectSearchLinks } from "@/lib/photoSearch";
 import { needsTranslation as isForeignLanguage } from "@/lib/language";
 
 const SOURCE_TONE: Record<FeedItem["source"], string> = {
@@ -409,9 +410,36 @@ export default function ItemCard({
         person={writeup?.people?.[0] ?? item.playerName ?? null}
         second={writeup?.people?.[1] ?? null}
         teamPage={item.teamPage ?? null}
+        handle={handle}
         onReady={setImages}
         wiki={item.source === "vlr" ? "valorant" : "counterstrike"}
       />
+
+      {/* The other half of the pair, when the quote is about a THING rather than a person.
+          Links rather than an automatic fetch: this picture carries the punchline, and a
+          badly chosen one is worse than none. See objectSearchLinks. */}
+      {writeup?.object && (
+        <div className="mt-2 rounded-md border border-dashed border-border p-2">
+          <p className="mb-1 text-xs text-text-muted">
+            This one is about <span className="text-text">{writeup.object}</span> — a picture
+            of it beside the face is the pair that works:
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {objectSearchLinks(writeup.object).map((link) => (
+              <a
+                key={link.label}
+                href={link.url}
+                target="_blank"
+                rel="noreferrer noopener"
+                title={link.note}
+                className="rounded-md border border-border px-2 py-1 text-xs text-blue"
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
 
       {draft.images.length > 0 && (
         <div className="mt-3">

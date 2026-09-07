@@ -41,7 +41,7 @@ const SYSTEM = [
   "First decide which kind of post this is.",
   "",
   "QUOTE — the source carries someone's words worth reading. Shape:",
-  '{"kind":"quote","lead":"...","emoji":"...","speaker":"...","quote":"...","context":"...","list":[],"people":["..."]}',
+  '{"kind":"quote","lead":"...","emoji":"...","speaker":"...","quote":"...","context":"...","object":"...","list":[],"people":["..."]}',
   "  lead — ONE sentence, YOUR words, saying who is speaking and what about. It is the",
   "    reason someone reads the quote, so it must promise something.",
   "    GOOD: donk on what makes tN1R so good:",
@@ -82,6 +82,15 @@ const SYSTEM = [
   "    qualified, a head-to-head of numbers). Each entry one short line, no bullet",
   '    character. GOOD: ["NiKo: 9","donk: 10"]. Otherwise an empty array.',
   "  people — every player or personality NAMED, nicknames only, speaker first.",
+  "  object — the one ORDINARY, PHOTOGRAPHABLE thing this is about, one or two words, if",
+  "    there is one. Not a person, not a team, not an event: a thing you could photograph",
+  "    on its own. It becomes the second picture beside the speaker's face.",
+  "    GOOD: a quote about drinking more water -> \"glass of water\"",
+  "    GOOD: a quote about not sleeping -> \"alarm clock\"",
+  "    GOOD: a quote about a knife skin -> \"karambit\"",
+  "    BAD:  \"Counter-Strike\", \"the game\", \"his team\", \"mental health\" — the first two are",
+  "          not a thing, the third is people, the fourth cannot be photographed.",
+  "    Empty string unless a specific object is genuinely there. Most posts have none.",
   "",
   "Rules:",
   "- Retell the FACTS in your own words. Facts are nobody's property; sentences are.",
@@ -146,6 +155,7 @@ export async function POST(request: Request) {
       quote?: string;
       background?: string;
       context?: string;
+      object?: string;
       list?: string[];
       people?: string[];
     }>(raw);
@@ -176,6 +186,12 @@ export async function POST(request: Request) {
       quote: correctNames((parsed.quote ?? "").trim()),
       background: correctNames((parsed.background ?? "").trim()),
       context: correctNames((parsed.context ?? "").trim()),
+      // Two words at most: it is a search term, and a sentence here means the model
+      // described the topic instead of naming a thing.
+      object: (() => {
+        const object = (parsed.object ?? "").trim();
+        return object && object.split(/\s+/).length <= 3 ? object : "";
+      })(),
       // A one-item list is not a list — it would render as a stray "> ". Drop it.
       list: (() => {
         const list = (parsed.list ?? [])

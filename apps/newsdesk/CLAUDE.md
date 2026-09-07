@@ -336,6 +336,22 @@ Ozzny ran donk beside NiKo — and `PostImages` could not make it until it was g
 (690×785, 686×780). X crops a side-by-side pair to a shared height, so mixing ratios is what
 produces the two mismatched slivers. This app renders 1080 squares, which is cs2files' shape.
 
+**The best post in the sample paired a face with an OBJECT.** magixx explained he reset by
+starting to drink water; Ozzny ran his face beside a stock photo of a glass of water — 1,576
+likes against 119 for the same account's stat post that day. The pair is the joke, and a
+second portrait could not have made it. `/api/writeup` returns an `object` field (two words,
+photographable, usually empty) and the card offers Openverse / Wikimedia / Google links for
+it. Links rather than an automatic fetch on purpose: free image search either does not exist
+or returns whatever is cheapest to serve, and this is the half of the pair carrying the
+punchline — a bad pick is worse than none. Openverse first because a generic object has no
+fair-use argument behind it the way a press photo does.
+
+**The watermark is Ozzny's, not cs2files'.** He puts `@Ozzny_CS2` bottom-right on every
+image; cs2files uses none. It is a toggle, and it earns its place because pictures are what
+travel — screenshotted, reposted, lifted into someone else's thread — and the handle is the
+only thing that goes with them. Drawn from the handle already in localStorage; the
+`@your_handle` placeholder draws nothing.
+
 Their crest treatment is exactly `CrestTile`: cs2files' ruggah post ran the Astralis star
 large and white on solid brand red, filling a 360 square. That was confirmed, not assumed.
 
