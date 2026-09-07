@@ -598,15 +598,31 @@ Per-channel RSS is free with no key and no quota, unlike the Data API.
 Tournament channels were tested and rejected: BLAST and ESL upload highlights, PGL's channel
 is Dota. Highlights are covered by Twitch, sooner and closer to the moment.
 
-### Twitch
-`twitch.ts` asks two different questions. The TOURNAMENT channels (blastpremier, esl_csgo,
-pgl_esports, blasttv) are where post-match interviews get clipped — that is the quote source
-HLTV cannot match, since a broadcast produces an interview after every series and HLTV writes
-up about two a day. Separately, the hardest-clipped Counter-Strike clips game-wide surface a
-moment while it is happening. Needs `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`; without
-them the source raises and the feed carries on. The app token is cached — Twitch's last
-about 60 days, so re-requesting one per feed refresh would be pointless traffic.
+### Twitch — T1/T2 EVENT BROADCASTS ONLY
+`twitch.ts` reads the official broadcast channels for real events (BLAST, ESL/IEM, PGL,
+FISSURE, CCT…) and nothing else. It used to ALSO ask "what is the whole Counter-Strike
+category clipping hardest?" via the `game_id` endpoint — and that filled the feed with random
+streamers' ranked games: "placz wasa", "nauka pickowania jak donk", "reakcja". A popular
+streamer's throwaway clip out-views a genuine T2 highlight, so no view threshold rescues the
+category firehose. It is gone. A clip is news only if it came off an event broadcast.
 
+Even on the right channels the bar is real, because the official chat clips every round —
+"12-11", "20260907", one view each. So a clip needs `MIN_VIEWS` (150) AND a non-junk title
+(`isJunkTitle` rejects scorelines, dates, bare numbers, 1–3 char tokens). Clips are sorted
+by views so the biggest moments survive the feed's cap.
+
+Channel logins that do not resolve are silently absent from Twitch's `/users` response, which
+is the safety net under the list: a wrong or dormant login returns no clips rather than
+breaking the source. VERIFY a new channel by watching the live feed attribute a clip to it —
+Twitch keys are only in Vercel, so a channel list cannot be checked from a sandbox.
+
+CAUTION — "Write it up" on a clip invents. The write-up route is built for HLTV articles with
+real body paragraphs; a Twitch clip is a title and nothing else, so the model fabricates the
+middle. It turned the clip "nauka pickowania jak donk" into "A new guide on how to pick like
+donk has gone viral on YouTube, posted by user Mamm0n…" — wrong platform, invented detail,
+pure larp. The source fix removes the random-streamer inputs that produced it, but the
+route will still invent on any thin item; a real highlight clip wants its title as a caption,
+not a generated story. Left as a known follow-up.
 ### Where the quotes actually come from
 The accounts with quotes HLTV does not have are taking them from BROADCASTS, not articles —
 a post crediting `@BLASTPremier` for a quote means the post-match interview aired on the
