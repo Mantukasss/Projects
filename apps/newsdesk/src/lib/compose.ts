@@ -54,6 +54,7 @@ const KIND_EMOJI: Record<FeedItem["kind"], string> = {
 const SOURCE_HANDLE: Partial<Record<FeedItem["source"], string>> = {
   hltv: "@HLTVorg",
   twitch: "@Twitch",
+  youtube: "@HLTVorg",
   steam: "@CounterStrike",
   vlr: "@VLRdotgg",
 };
@@ -65,6 +66,7 @@ const SOURCE_NAME: Record<FeedItem["source"], string> = {
   steam: "Valve",
   telegram: "Telegram",
   twitch: "Twitch",
+  youtube: "YouTube",
   vlr: "VLR.gg",
 };
 

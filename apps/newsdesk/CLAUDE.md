@@ -176,10 +176,11 @@ and the app gains Google sign-in copied from `apps/hub`.
   (free, runs in-database, minute-level), not Vercel cron.
 - No source image means the quote card is the media. `needsCard` on the draft flags it and
   the card button turns purple.
-- **Telegram is read through `t.me/s/<channel>`** — plain HTML, no API, no key, any public
-  channel's last ~20 posts. `cstracker` reports Valve build changes detected from Steam
-  depots, which lands before any announcement; `newcsgo` breaks CIS roster news ahead of
-  English outlets. Both are Russian and arrive untranslated.
+- **Telegram is `cstracker` only, and that is not a news outlet.** It reports Valve build
+  changes detected from Steam depots, which lands before any announcement. `newcsgo` was
+  removed: it is CS2NEWS's own channel, the same operation as their X account, so reading it
+  meant being behind them by construction — they publish to both at once and anything found
+  there is already out in English. A source you cannot beat is a competitor, not a source.
 - **`rivals.ts` is not a content source.** It reads what the incumbents already posted so
   the feed can say "you are not first". Its matcher is deliberately strict — a false
   positive hides a real scoop, which costs far more than an occasional duplicate.
@@ -251,6 +252,17 @@ Vercel project `mantas-newsdesk` exists (Root Directory `apps/newsdesk`, product
 `https://mantas-newsdesk.vercel.app`. Unlike the hub, this app's `vercel.json` does **not**
 set `git.deploymentEnabled: false` — the template ships that flag on, which silently blocks
 every git-triggered build, so it was removed here to let pushes deploy.
+
+### YouTube — the interview source
+`youtube.ts` reads HLTV's channel, which carries HLTV Confirmed: their talk show, three
+hundred-odd episodes of players and analysts on the record. Episode titles are effectively a
+contents page — "lauNX talks FUT & future; Techno to BCG, Snappi to coach?" names three
+stories before a second is watched. Titles are filtered to interview shapes and AGAINST
+highlight shapes, because the same channel posts clips and a clip of an ace is not a quote.
+Per-channel RSS is free with no key and no quota, unlike the Data API.
+
+Tournament channels were tested and rejected: BLAST and ESL upload highlights, PGL's channel
+is Dota. Highlights are covered by Twitch, sooner and closer to the moment.
 
 ### Twitch
 `twitch.ts` asks two different questions. The TOURNAMENT channels (blastpremier, esl_csgo,

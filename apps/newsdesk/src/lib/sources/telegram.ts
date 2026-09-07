@@ -8,14 +8,16 @@ import { USER_AGENT, decodeEntities } from "./fetchXml";
  * its last ~20 posts there. This is the fastest surface in the whole app, because Telegram
  * is where the CS scene actually talks first.
  *
- * Two channels earn their place for different reasons:
+ * ONE channel earns its place, and it is not a news outlet:
  *
- *  - `cstracker` watches Valve's Steam depots and fires when a CS2 build changes. That is
- *    a machine-observed fact, so it lands BEFORE Valve announces anything and before any
+ *  - `cstracker` watches Valve's Steam depots and fires when a CS2 build changes. That is a
+ *    machine-observed fact, so it lands BEFORE Valve announces anything and before any
  *    journalist can write it up. Nothing else in this app is first in that sense.
- *  - `newcsgo` is Russian-language and breaks CIS roster news well ahead of English
- *    outlets. Most English CS accounts do not read it, which is exactly why it is worth
- *    reading. Posts are marked `ru` so the composer can flag that they need translating.
+ *
+ * `newcsgo` was here and has been removed. It is CS2NEWS's own channel — the same operation
+ * as their X account — so reading it meant being behind them by construction: they publish
+ * to both at once, and anything found there is already out in English. A source you cannot
+ * beat is not a source, it is a competitor.
  *
  * Not solved here: the Russian posts arrive untranslated, and telling banter from a report
  * across a language barrier is guesswork — `looksLikeNews` below is a blunt filter, not
@@ -37,12 +39,6 @@ export const CHANNELS: ChannelConfig[] = [
     label: "CS Tracker",
     language: "ru",
     note: "Valve build changes, detected from Steam depots before any announcement",
-  },
-  {
-    handle: "newcsgo",
-    label: "CS2NEWS",
-    language: "ru",
-    note: "Russian-language CIS scene news, usually ahead of English outlets",
   },
 ];
 
