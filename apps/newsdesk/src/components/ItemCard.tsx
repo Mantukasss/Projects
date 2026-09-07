@@ -29,7 +29,6 @@ import CrestTile from "./CrestTile";
 import PostImages from "./PostImages";
 import ResultCard from "./ResultCard";
 import { parseResult } from "@/lib/results";
-import { needsTranslation as isForeignLanguage } from "@/lib/language";
 
 const SOURCE_TONE: Record<FeedItem["source"], string> = {
   hltv: "text-amber",
@@ -167,9 +166,12 @@ export default function ItemCard({
     setRetryNonce((n) => n + 1);
   };
 
-  // Not English means it cannot go out as written. See lib/language.ts for how that is
-  // judged — a Portuguese post from FURIA reads as English to any alphabet-based test.
-  const needsTranslation = isForeignLanguage(`${item.title} ${item.summary}`);
+  /**
+   * Decided by the feed, not here. See lib/language.ts — the detector carries trigram tables
+   * for eighty-odd languages and has no business in a phone bundle, and it has to judge the
+   * title and the summary separately, which only the server has cleanly split.
+   */
+  const needsTranslation = item.foreign === true;
 
   const translate = async () => {
     setTranslating(true);
@@ -191,7 +193,7 @@ export default function ItemCard({
          * short fragment like a three-letter clip title that rule can return the whole line
          * unchanged. It looked like the button had done nothing, which reads as a bug.
          */
-        if (isForeignLanguage(data.text)) {
+        if (data.stillForeign) {
           setTranslateError(
             "It came back still not in English — usually a fragment the translator read as a name. Post it in your own words or skip it.",
           );

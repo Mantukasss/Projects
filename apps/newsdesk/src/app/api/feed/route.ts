@@ -15,6 +15,7 @@ import { teamInText } from "@/lib/teams";
 import { playerInText } from "@/lib/players";
 import { itemNameIn } from "@/lib/sources/csItems";
 import { correctNames } from "@/lib/glossary";
+import { anyForeign } from "@/lib/language";
 import { fetchVlr } from "@/lib/sources/vlr";
 import { staleOnError } from "@/lib/sources/staleCache";
 
@@ -90,8 +91,14 @@ export async function GET(request: Request) {
       item.teamPage ?? (item.source === "liquipedia" ? item.title : teamInText(searchable));
     const playerName = item.playerName ?? playerInText(correctNames(item.title));
     const itemName = itemNameIn(item.title);
+    /**
+     * Title and summary judged separately, never concatenated — see lib/language.ts. Decided
+     * here rather than on the card so the detector's language tables stay off the phone.
+     */
+    const foreign = anyForeign(item.title, item.summary);
     return {
       ...flagged,
+      ...(foreign ? { foreign } : {}),
       ...(scooped ? { scooped } : {}),
       ...(teamPage ? { teamPage } : {}),
       ...(playerName ? { playerName } : {}),
