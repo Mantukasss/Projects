@@ -2,10 +2,16 @@
  * Talking to the push tables, which nothing else may touch.
  *
  * Every table in the `newsdesk` schema has RLS on and NO POLICY, so the anon key can read and
- * write nothing directly. The only way in is the SECURITY DEFINER functions in
- * supabase/001_push.sql, and the two privileged ones demand a shared secret. That is why this
- * app never needs the service_role key — which stays in the owner's password manager, per the
- * repo rule, and never reaches Vercel.
+ * write nothing directly — verified: a plain select on any of them is refused. The only way
+ * in is the SECURITY DEFINER functions, and the two privileged ones demand a shared secret.
+ * That is why this app never needs the service_role key, which stays in the owner's password
+ * manager per the repo rule and never reaches Vercel.
+ *
+ * THE FUNCTIONS LIVE IN `public`, THE TABLES IN `newsdesk`, and that split is deliberate.
+ * PostgREST only serves schemas it has been configured to expose, and adding one takes a
+ * service restart on Supabase; `public` is already exposed. Four narrow, secret-guarded
+ * functions there is a smaller API surface than a whole extra schema, and it needed no
+ * config change at all. See supabase/003_push_public_api.sql.
  */
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -27,9 +33,6 @@ async function rpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
       apikey: ANON_KEY,
       Authorization: `Bearer ${ANON_KEY}`,
       "Content-Type": "application/json",
-      // The functions live in `newsdesk`, not `public`, and PostgREST will not look there
-      // without being told. A missing header here reads as "function does not exist".
-      "Content-Profile": "newsdesk",
       Accept: "application/json",
     },
     body: JSON.stringify(args),
@@ -48,7 +51,7 @@ export interface StoredSubscription {
 }
 
 export function subscribe(sub: StoredSubscription): Promise<void> {
-  return rpc("subscribe_push", {
+  return rpc("newsdesk_subscribe_push", {
     p_endpoint: sub.endpoint,
     p_p256dh: sub.p256dh,
     p_auth: sub.auth,
@@ -56,7 +59,7 @@ export function subscribe(sub: StoredSubscription): Promise<void> {
 }
 
 export function unsubscribe(endpoint: string): Promise<void> {
-  return rpc("unsubscribe_push", { p_endpoint: endpoint });
+  return rpc("newsdesk_unsubscribe_push", { p_endpoint: endpoint });
 }
 
 /**
@@ -70,7 +73,7 @@ export function claim(
   secret: string,
   itemIds: string[],
 ): Promise<{ new_ids: string[]; subscriptions: StoredSubscription[] }> {
-  return rpc("claim_push", { p_secret: secret, p_item_ids: itemIds });
+  return rpc("newsdesk_claim_push", { p_secret: secret, p_item_ids: itemIds });
 }
 
 export function recordResult(
@@ -79,7 +82,7 @@ export function recordResult(
   ok: boolean,
   gone: boolean,
 ): Promise<void> {
-  return rpc("record_push_result", {
+  return rpc("newsdesk_record_push_result", {
     p_secret: secret,
     p_endpoint: endpoint,
     p_ok: ok,

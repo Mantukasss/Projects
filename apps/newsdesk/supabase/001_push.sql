@@ -66,8 +66,12 @@ create table if not exists newsdesk.push_config (
 alter table newsdesk.push_config enable row level security;
 
 -- ---------------------------------------------------------------------------------------
--- Functions — the only way in
+-- Functions — SUPERSEDED BY 003_push_public_api.sql, which moves them to `public`
 -- ---------------------------------------------------------------------------------------
+-- These were created here and then dropped: PostgREST only serves schemas it is configured
+-- to expose, and adding `newsdesk` to that list needs a service restart on Supabase. `public`
+-- was already exposed, so the functions moved there and the TABLES STAYED HERE, behind RLS
+-- with no policies. Kept in this file as the record of what was tried and why it changed.
 
 -- Register this device. Open to anon on purpose: asking for alerts on your own browser is
 -- the entire point, and the endpoint is issued by the push service, not chosen by a caller.
