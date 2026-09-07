@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { LlmError, ask, hasLlmKey } from "@/lib/llm";
 import { correctNames, glossaryLines } from "@/lib/glossary";
+import { needsTranslation } from "@/lib/language";
 
 export const runtime = "nodejs";
 
@@ -76,6 +77,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "bad body" }, { status: 400 });
   }
   if (!text.trim()) return NextResponse.json({ error: "empty text" }, { status: 400 });
+
+  /**
+   * English in, English out — without asking the model.
+   *
+   * The prompt says to return English text unchanged and the model ignores it: handed
+   * "JUST IN: donk drops 30 kills as Team Spirit take Nuke off FaZe" it returned "donk
+   * scores 30 kills as Team Spirit win Nuke over FaZe", losing the label and rewording a
+   * line that was already right. An instruction a model reliably disobeys is not a rule, so
+   * this is enforced here. It also saves the call.
+   */
+  if (!needsTranslation(text)) return NextResponse.json({ text });
 
   try {
     // The prompt is instruction; correctNames is enforcement. A model that has just
