@@ -29,7 +29,6 @@ import CrestTile from "./CrestTile";
 import PostImages from "./PostImages";
 import ResultCard from "./ResultCard";
 import { parseResult } from "@/lib/results";
-import { objectSearchLinks } from "@/lib/photoSearch";
 import { needsTranslation as isForeignLanguage } from "@/lib/language";
 
 const SOURCE_TONE: Record<FeedItem["source"], string> = {
@@ -182,8 +181,22 @@ export default function ItemCard({
         body: JSON.stringify({ text: `${item.title}\n${item.summary}`.trim() }),
       });
       const data = await res.json();
-      if (res.ok && data.text) setTranslated(data.text);
-      else setTranslateError(data.error ?? "translation failed");
+      if (res.ok && data.text) {
+        setTranslated(data.text);
+        /**
+         * A translation that comes back still unreadable is not a success.
+         *
+         * The prompt tells the model to leave a name it cannot spell exactly as written,
+         * which is right — an invented nickname is worse than an untranslated one — but on a
+         * short fragment like a three-letter clip title that rule can return the whole line
+         * unchanged. It looked like the button had done nothing, which reads as a bug.
+         */
+        if (isForeignLanguage(data.text)) {
+          setTranslateError(
+            "It came back still not in English — usually a fragment the translator read as a name. Post it in your own words or skip it.",
+          );
+        }
+      } else setTranslateError(data.error ?? "translation failed");
     } catch {
       setTranslateError("translation failed");
     } finally {
@@ -411,35 +424,12 @@ export default function ItemCard({
         second={writeup?.people?.[1] ?? null}
         teamPage={item.teamPage ?? null}
         handle={handle}
+        options={draft.images}
+        objectWanted={writeup?.object || null}
         onReady={setImages}
         wiki={item.source === "vlr" ? "valorant" : "counterstrike"}
       />
 
-      {/* The other half of the pair, when the quote is about a THING rather than a person.
-          Links rather than an automatic fetch: this picture carries the punchline, and a
-          badly chosen one is worse than none. See objectSearchLinks. */}
-      {writeup?.object && (
-        <div className="mt-2 rounded-md border border-dashed border-border p-2">
-          <p className="mb-1 text-xs text-text-muted">
-            This one is about <span className="text-text">{writeup.object}</span> — a picture
-            of it beside the face is the pair that works:
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {objectSearchLinks(writeup.object).map((link) => (
-              <a
-                key={link.label}
-                href={link.url}
-                target="_blank"
-                rel="noreferrer noopener"
-                title={link.note}
-                className="rounded-md border border-border px-2 py-1 text-xs text-blue"
-              >
-                {link.label}
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
 
       {draft.images.length > 0 && (
         <div className="mt-3">
@@ -592,9 +582,12 @@ export default function ItemCard({
         </button>
       )}
 
+      {/* `needsTranslation` is measured on the ORIGINAL, so it stays true after translating —
+          which is why this used to keep saying "translate it first" to someone who just had.
+          What is still outstanding is what it must report. */}
       {!hasMedia && (
         <p className="mt-3 text-sm text-coral">
-          {needsTranslation
+          {needsTranslation && !translated
             ? "Translate it first, then attach two pictures — this cannot go out as written."
             : "Needs two images. One reads as a caption; two read as an event."}
         </p>
@@ -693,6 +686,21 @@ export default function ItemCard({
             ? "Fix the post first"
             : `Share to X — text + ${images.length} image${images.length > 1 ? "s" : ""}`}
         </button>
+      )}
+
+      {/* Why there is no picture in the share: X's intent URL cannot carry an attachment,
+          and only navigator.share can. Saying so beats looking broken. */}
+      {!shareable && images.length === 0 && (
+        <p className="mt-3 text-xs text-text-low">
+          No shareable square yet — X&apos;s composer link can only carry text, so save a
+          picture above and attach it by hand.
+        </p>
+      )}
+      {!shareable && images.length > 0 && (
+        <p className="mt-3 text-xs text-text-low">
+          This browser will not hand files to another app, so the pictures cannot ride along.
+          Save them above and attach them by hand.
+        </p>
       )}
 
       <button

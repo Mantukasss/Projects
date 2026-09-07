@@ -25,6 +25,15 @@ const ALLOWED_HOSTS = new Set([
   "preview.redd.it",
   "i.redd.it",
   "external-preview.redd.it",
+  // Added so that EVERY media option can be drawn onto a shareable square, not just the
+  // player photo and the crest. A canvas holding a cross-origin image cannot be exported,
+  // and an image that cannot be exported cannot go into the share sheet — which was why a
+  // post with only a source picture went to X as text alone. All four verified to answer a
+  // server request, unlike HLTV's own CDN.
+  "pbs.twimg.com",
+  "static-cdn.jtvnw.net",
+  "clips-media-assets2.twitch.tv",
+  "i.ytimg.com",
 ]);
 
 const ONE_DAY = 60 * 60 * 24;

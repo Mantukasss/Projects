@@ -1,49 +1,51 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { MediaOption } from "@/lib/compose";
 import { brandOf } from "@/lib/teams";
-import { photoSearchLinks } from "@/lib/photoSearch";
+import { objectSearchLinks, photoSearchLinks } from "@/lib/photoSearch";
 
 /**
- * The pair of images a post goes out with, both the same square.
+ * The pair of images a post goes out with, both the same square, both ready to share.
  *
  * WHAT GOES IN THE SECOND SLOT, read off @Ozzny_CS2 and @cs2files rather than guessed:
  *
  *   Two people in the story  ->  BOTH FACES. cs2files' "donk on what makes tN1R so good"
  *                                ran donk beside tN1R; Ozzny's MVP count ran donk beside
- *                                NiKo. This is the commonest pair in both accounts and the
- *                                one this component used to be incapable of making.
+ *                                NiKo. This is the commonest pair in both accounts.
  *   One person, one org      ->  face + crest on the org's brand colour. cs2files' ruggah
  *                                retirement ran his own photo beside the Astralis star on
- *                                solid red — which is exactly what CrestTile draws.
- *   One person, no org       ->  the face alone, and pick a second below.
+ *                                solid red — which is what CrestTile draws.
+ *   Neither                  ->  whatever the story actually shipped: the source photo, the
+ *                                skin, the game capsule. Still drawn onto the same square.
  *
- * The crest is the FALLBACK, not the default. A second face is always the stronger pair
- * because a story is about people, and two faces tell you who before you read a word.
+ * EVERY CANDIDATE IS TRIED, IN ORDER, UNTIL TWO LOAD. This is the fix for a post reaching X
+ * as text with no pictures: the component used to render only a player photo and a crest, so
+ * a card with neither produced no squares at all, nothing reached the share sheet, and the
+ * only route left was X's intent URL — which cannot carry an attachment. Now the planned
+ * media are candidates too, so a post that has any picture at all has a shareable one.
  *
- * Matching dimensions is the whole point and the thing that was missing. X lays two
- * attachments side by side and crops them to a shared height, so a tall portrait beside a
- * wide capsule gets butchered into two mismatched slivers — which is the "weird shit" in a
- * feed of otherwise identical posts. Rendering both onto the same 1080 square means the
- * pair always sits flush, every post, without anyone thinking about it.
- *
- * 1080 because X serves attachments at up to 1080 wide before recompressing; larger costs
- * upload time and buys nothing.
+ * A slot that comes back empty advances to the next unused candidate rather than giving up.
  */
 const SIZE = 1080;
 const BG = "#161618";
 
 type Slot = "photo" | "crest";
 
+interface Candidate {
+  url: string;
+  label: string;
+  slot: Slot;
+  /** Crests are contained on the org's colour; photographs are cover-cropped. */
+  brand?: string | null;
+}
+
 /**
  * Ozzny's watermark, bottom-right, on every image he posts.
  *
  * Worth copying and not decoration: the pictures are what travel — screenshotted, reposted,
  * lifted into someone else's thread — and the handle is the only thing that comes with them.
- * cs2files does not do it, so it is a toggle rather than a rule.
- *
- * Drawn small, at low opacity, with a soft shadow so it reads on a light photo and a dark
- * one without a plate behind it. His sits at roughly 2% of the width in from the corner.
+ * cs2files does not do it, so it follows the handle rather than being forced.
  */
 function watermark(ctx: CanvasRenderingContext2D, handle: string): void {
   if (!handle || handle === "@your_handle") return;
@@ -59,19 +61,21 @@ function watermark(ctx: CanvasRenderingContext2D, handle: string): void {
 }
 
 function useSquare(
-  src: string | null,
-  slot: Slot,
-  brand: string | null,
+  candidate: Candidate | null,
   handle: string,
 ): {
   ref: React.RefObject<HTMLCanvasElement | null>;
   state: "loading" | "ready" | "empty";
-  /** The finished square as a data URL, or null when the canvas is tainted. */
+  /** The finished square as a data URL, or null when the canvas could not be exported. */
   url: string | null;
 } {
   const ref = useRef<HTMLCanvasElement>(null);
   const [state, setState] = useState<"loading" | "ready" | "empty">("loading");
   const [url, setUrl] = useState<string | null>(null);
+
+  const slot = candidate?.slot ?? "photo";
+  const brand = candidate?.brand ?? null;
+  const src = candidate?.url ?? null;
 
   const draw = useCallback(
     (img: HTMLImageElement | null) => {
@@ -85,40 +89,40 @@ function useSquare(
       if (!img?.width) {
         // Nothing to show. An empty coloured square is worse than no square: it looks like
         // a finished image, so it gets attached, and the post goes out with a blank tile.
+        setUrl(null);
         setState("empty");
         return;
       }
 
-      {
-        if (slot === "photo") {
-          // Cover-crop, biased upward so a head is never cut off by the square.
-          const scale = Math.max(SIZE / img.width, SIZE / img.height);
-          const w = img.width * scale;
-          const h = img.height * scale;
-          ctx.drawImage(img, (SIZE - w) / 2, (SIZE - h) * 0.25, w, h);
-        } else {
-          // Contain, with a wide margin: a crest needs room or it reads as a sticker.
-          const box = SIZE * 0.58;
-          const scale = Math.min(box / img.width, box / img.height);
-          const w = img.width * scale;
-          const h = img.height * scale;
-          ctx.drawImage(img, (SIZE - w) / 2, (SIZE - h) / 2, w, h);
-        }
+      if (slot === "photo") {
+        // Cover-crop, biased upward so a head is never cut off by the square.
+        const scale = Math.max(SIZE / img.width, SIZE / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        ctx.drawImage(img, (SIZE - w) / 2, (SIZE - h) * 0.25, w, h);
+      } else {
+        // Contain, with a wide margin: a crest needs room or it reads as a sticker.
+        const box = SIZE * 0.58;
+        const scale = Math.min(box / img.width, box / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        ctx.drawImage(img, (SIZE - w) / 2, (SIZE - h) / 2, w, h);
       }
+
+      watermark(ctx, handle);
+
       /**
-       * Exported to a data URL so the square can be shown as an <img>.
+       * Exported to a data URL so the square can be shown as an <img> AND handed to the
+       * share sheet.
        *
        * This is the difference between usable and not on a phone. A <canvas> cannot be
-       * long-pressed and saved: iOS offers "Add to Photos" on an <img> and nothing at all on
-       * a canvas, so the only way to get the picture into the camera roll — which is where
-       * X's attach sheet looks — was a download link that Safari handles badly. As an
-       * <img> the native gesture just works.
+       * long-pressed and saved — iOS offers "Add to Photos" on an <img> and nothing at all
+       * on a canvas — and a canvas that cannot be exported cannot become a File either, so
+       * the post reaches X with no pictures.
        *
-       * Throws when a cross-origin photo tainted the canvas, which is not an error worth
-       * surfacing: the canvas still renders, so the tile looks right and only the save falls
-       * back to the download button.
+       * It throws when a cross-origin image tainted the canvas, which is why every host the
+       * feed draws from is proxied through /api/image rather than loaded direct.
        */
-      watermark(ctx, handle);
       try {
         setUrl(canvas.toDataURL("image/png"));
       } catch {
@@ -130,16 +134,13 @@ function useSquare(
   );
 
   useEffect(() => {
+    setState("loading");
     if (!src) {
       draw(null);
       return;
     }
     const img = new Image();
-    /**
-     * Requested with CORS so the canvas stays exportable when the host allows it. HLTV
-     * serves through imgix, which usually does; if it does not, the draw still succeeds and
-     * only the save is blocked — which the button below reports rather than swallowing.
-     */
+    // Requested with CORS so the canvas stays exportable where the host allows it.
     if (/^https?:/i.test(src)) img.crossOrigin = "anonymous";
     img.onload = () => draw(img);
     img.onerror = () => draw(null);
@@ -149,13 +150,7 @@ function useSquare(
   return { ref, state, url };
 }
 
-/**
- * Returns false when the canvas cannot be exported.
- *
- * A cross-origin photo drawn without CORS taints the canvas and makes toDataURL throw. That
- * used to be swallowed, so tapping Save did nothing at all and looked like a broken app —
- * the caller now says what to do instead.
- */
+/** Returns false when the canvas cannot be exported, so the caller can say what to do. */
 function save(canvas: HTMLCanvasElement | null, name: string): boolean {
   if (!canvas) return false;
   try {
@@ -169,21 +164,74 @@ function save(canvas: HTMLCanvasElement | null, name: string): boolean {
   }
 }
 
+/**
+ * Hosts `/api/image` will re-serve. Mirrors the allowlist in that route.
+ *
+ * Same-origin is the whole game here. A canvas that has drawn a cross-origin image cannot be
+ * exported, and a square that cannot be exported cannot become a File — so it never reaches
+ * the share sheet, and the post goes to X as text with no pictures. Proxying makes it ours.
+ */
+const PROXYABLE = new Set([
+  "liquipedia.net",
+  "img-cdn.hltv.org",
+  "www.hltv.org",
+  "clan.fastly.steamstatic.com",
+  "clan.akamai.steamstatic.com",
+  "cdn.akamai.steamstatic.com",
+  "shared.fastly.steamstatic.com",
+  "preview.redd.it",
+  "i.redd.it",
+  "external-preview.redd.it",
+  "pbs.twimg.com",
+  "static-cdn.jtvnw.net",
+  "clips-media-assets2.twitch.tv",
+  "i.ytimg.com",
+]);
+
+/**
+ * HLTV'S OWN CDN CAN NEVER BE MADE EXPORTABLE, and that is not a bug to keep re-testing.
+ *
+ * It answers 403 to Vercel's runtime, so `/api/image` cannot re-serve it, and it sends no
+ * `Access-Control-Allow-Origin`, so a browser cannot load it with CORS either. Both routes to
+ * an exportable canvas are closed. Its photos are therefore offered as PLAIN <img> tiles,
+ * where press-and-hold still saves them, and they stay out of the composed pair — because a
+ * pair that cannot be shared is what sent a post to X with nothing attached.
+ */
+const UNEXPORTABLE = /img-cdn\.hltv\.org/;
+
+/** Same-origin already, proxied where allowed, null where neither is possible. */
+function drawable(url: string): string | null {
+  if (url.startsWith("/")) return url;
+  try {
+    const host = new URL(url).hostname;
+    if (UNEXPORTABLE.test(url)) return null;
+    return PROXYABLE.has(host) ? `/api/image?url=${encodeURIComponent(url)}` : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function PostImages({
   person,
   second,
   teamPage,
+  options,
   wiki,
   handle,
+  objectWanted,
   onReady,
 }: {
   person: string | null;
   /** The other person in the story, when there is one. Takes the second slot from the crest. */
   second: string | null;
   teamPage: string | null;
+  /** Everything planMedia found, in its order — the fallback candidates for either slot. */
+  options: MediaOption[];
   wiki: "counterstrike" | "valorant";
   /** Watermarked bottom-right, the way Ozzny does. Empty or the placeholder draws nothing. */
   handle: string;
+  /** The ordinary thing a quote is about, when the write-up named one. */
+  objectWanted: string | null;
   /**
    * Hands the finished squares up as files, so the card can share them with the text.
    *
@@ -194,12 +242,11 @@ export default function PostImages({
   onReady?: (files: File[]) => void;
 }) {
   /**
-   * HLTV's press photo when they have one, Liquipedia's otherwise.
+   * HLTV's press photo when they have one, Liquipedia's otherwise, for both people.
    *
    * Asked for per card rather than carried on the feed, because the index lives in one
-   * serverless instance's memory and the instance answering the feed is rarely the one
-   * that built it — the feed reported no photos while the index itself was fine. The
-   * dedicated route waits for the index, so a card's answer is complete.
+   * serverless instance's memory and the instance answering the feed is rarely the one that
+   * built it — the feed reported no photos while the index itself was fine.
    */
   const [hltvPhoto, setHltvPhoto] = useState<string | null>(null);
   const [hltvSecond, setHltvSecond] = useState<string | null>(null);
@@ -225,57 +272,131 @@ export default function PostImages({
     };
   }, [person, second, teamPage]);
 
-  const photoSrc =
-    hltvPhoto ??
-    (person
-      ? `/api/photo?name=${encodeURIComponent(person)}${wiki === "valorant" ? "&wiki=valorant" : ""}`
-      : null);
+  const wikiParam = wiki === "valorant" ? "&wiki=valorant" : "";
+
   /**
-   * The second slot: the other person's face where the story has one, the crest otherwise.
+   * Everything this post could put in a square, best first.
    *
-   * Both are requested — a second face can fail to resolve, and dropping to the crest is
-   * better than dropping to nothing — but only one is shown, the face first.
+   * Faces lead because a story is about people and two faces say who before a word is read.
+   * The crest follows. Then whatever the source actually shipped — which is the difference
+   * between a post that can be shared with pictures and one that cannot.
    */
-  const secondSrc =
-    second && second !== person
-      ? (hltvSecond ??
-        `/api/photo?name=${encodeURIComponent(second)}${wiki === "valorant" ? "&wiki=valorant" : ""}`)
-      : null;
-  const crestSrc = teamPage
-    ? `/api/logo?title=${encodeURIComponent(teamPage)}${wiki === "valorant" ? "&wiki=valorant" : ""}`
-    : null;
+  const candidates = useMemo<Candidate[]>(() => {
+    const list: Candidate[] = [];
+    const push = ({ url, ...rest }: Omit<Candidate, "url"> & { url: string | null }) => {
+      if (url && !list.some((existing) => existing.url === url)) list.push({ url, ...rest });
+    };
 
-  const photo = useSquare(photoSrc, "photo", null, handle);
-  const face2 = useSquare(secondSrc, "photo", null, handle);
-  const crest = useSquare(crestSrc, "crest", teamPage ? brandOf(teamPage) : null, handle);
+    // Liquipedia's portrait rather than HLTV's, for the composed square: HLTV's is the better
+    // photograph and the one this account is imitating, but it cannot be exported, and an
+    // unshareable square is worse than a slightly softer one. HLTV's is offered below.
+    if (person) {
+      push({
+        url: `/api/photo?name=${encodeURIComponent(person)}${wikiParam}`,
+        label: person,
+        slot: "photo",
+      });
+    }
+    if (second && second !== person) {
+      push({
+        url: `/api/photo?name=${encodeURIComponent(second)}${wikiParam}`,
+        label: second,
+        slot: "photo",
+      });
+    }
+    if (teamPage) {
+      push({
+        url: `/api/logo?title=${encodeURIComponent(teamPage)}${wikiParam}`,
+        label: teamPage,
+        slot: "crest",
+        brand: brandOf(teamPage),
+      });
+    }
+    for (const option of options) {
+      // A clip is attached as footage, not drawn onto a square.
+      if (option.video) continue;
+      push({
+        url: drawable(option.url),
+        label: option.label,
+        slot: option.crest ? "crest" : "photo",
+        brand: option.crest?.brand ?? null,
+      });
+    }
+    return list;
+  }, [person, second, teamPage, options, wikiParam]);
 
-  const [blocked, setBlocked] = useState<Slot | null>(null);
-  const showPhoto = Boolean(photoSrc) && photo.state !== "empty";
-  const showFace2 = Boolean(secondSrc) && face2.state !== "empty";
-  // A second face wins the slot; the crest only fills it when there is no second face.
-  const showCrest = !showFace2 && Boolean(crestSrc) && crest.state !== "empty";
-  const both = showPhoto && (showFace2 || showCrest);
+  /**
+   * HLTV's editorial photographs, offered separately because they cannot be composed.
+   *
+   * See UNEXPORTABLE. Press-and-hold saves a plain <img> even when its source is cross-origin,
+   * so these are still one gesture away from the camera roll — they just cannot ride the
+   * share sheet with the text.
+   */
+  const hltvExtras = [
+    hltvPhoto ? { url: hltvPhoto, label: person ?? teamPage ?? "photo" } : null,
+    hltvSecond && hltvSecond !== hltvPhoto ? { url: hltvSecond, label: second ?? "photo" } : null,
+  ].filter((extra): extra is { url: string; label: string } => extra !== null);
+
+  /**
+   * Which candidate each slot is showing.
+   *
+   * Two fixed slots because hooks cannot be called in a loop. A slot whose candidate fails
+   * to load advances past the other slot's pick to the next unused one, so a dead URL costs
+   * a moment rather than the whole picture.
+   */
+  const [left, setLeft] = useState(0);
+  const [right, setRight] = useState(1);
+
+  useEffect(() => {
+    setLeft(0);
+    setRight(1);
+  }, [candidates]);
+
+  const a = useSquare(candidates[left] ?? null, handle);
+  const b = useSquare(candidates[right] ?? null, handle);
+
+  useEffect(() => {
+    if (a.state === "empty" && left < candidates.length) {
+      setLeft((current) => {
+        let next = current + 1;
+        while (next === right) next += 1;
+        return next;
+      });
+    }
+  }, [a.state, left, right, candidates.length]);
+
+  useEffect(() => {
+    if (b.state === "empty" && right < candidates.length) {
+      setRight((current) => {
+        let next = current + 1;
+        while (next === left) next += 1;
+        return next;
+      });
+    }
+  }, [b.state, left, right, candidates.length]);
+
+  const showA = Boolean(candidates[left]) && a.state !== "empty";
+  const showB = Boolean(candidates[right]) && b.state !== "empty";
+  const both = showA && showB;
 
   /**
    * Turns the exported squares into files for the share sheet.
    *
-   * Runs before the early return below, because a hook that only sometimes runs is a React
-   * error rather than a subtle bug. The data URLs are the dependency: a redraw produces a
-   * new one, and the files follow.
+   * Runs before any early return, because a hook that only sometimes runs is a React error
+   * rather than a subtle bug. The data URLs are the dependency: a redraw makes a new one and
+   * the files follow.
    */
-  const leftUrl = showPhoto ? photo.url : null;
-  const rightUrl = showFace2 ? face2.url : showCrest ? crest.url : null;
-  const leftName = person ?? "photo";
-  const rightName = (showFace2 ? second : teamPage) ?? "second";
+  const aUrl = showA ? a.url : null;
+  const bUrl = showB ? b.url : null;
+  const aName = candidates[left]?.label ?? "image";
+  const bName = candidates[right]?.label ?? "image";
 
   useEffect(() => {
     if (!onReady) return;
     let cancelled = false;
-    const wanted = [
-      [leftUrl, leftName] as const,
-      [rightUrl, rightName] as const,
-    ].filter((pair): pair is readonly [string, string] => Boolean(pair[0]));
-
+    const wanted = ([[aUrl, aName], [bUrl, bName]] as const).filter(
+      (pair): pair is readonly [string, string] => Boolean(pair[0]),
+    );
     if (wanted.length === 0) {
       onReady([]);
       return;
@@ -297,22 +418,21 @@ export default function PostImages({
     return () => {
       cancelled = true;
     };
-  }, [leftUrl, rightUrl, leftName, rightName, onReady]);
+  }, [aUrl, bUrl, aName, bName, onReady]);
 
-  if (!showPhoto && !showFace2 && !showCrest) return null;
+  const [blocked, setBlocked] = useState(false);
 
-  /**
-   * Saves both squares in one tap.
-   *
-   * Two download clicks in the same tick get collapsed to one by every browser that has a
-   * "downloading multiple files" prompt, so the second is deferred a beat. It is a hack and
-   * it is the standard one.
-   */
+  if (!showA && !showB) {
+    // Nothing drew. Still say where to find something rather than showing an empty card.
+    return person || teamPage ? (
+      <SearchHelp subject={(person ?? teamPage) as string} wiki={wiki} object={objectWanted} />
+    ) : null;
+  }
+
   const saveBoth = () => {
-    if (showPhoto && !save(photo.ref.current, person ?? "photo")) setBlocked("photo");
+    if (showA && !save(a.ref.current, aName)) setBlocked(true);
     window.setTimeout(() => {
-      if (showFace2 && !save(face2.ref.current, second ?? "photo")) setBlocked("photo");
-      else if (showCrest && !save(crest.ref.current, teamPage ?? "crest")) setBlocked("crest");
+      if (showB && !save(b.ref.current, bName)) setBlocked(true);
     }, 400);
   };
 
@@ -320,17 +440,15 @@ export default function PostImages({
    * One tile: the square as an <img> when it exported, the raw canvas when it did not.
    *
    * The <img> is what makes this work on a phone — long-press gives "Add to Photos", which
-   * is the gallery X's attach sheet reads from. The canvas is the fallback for a tainted
-   * export, where tapping still triggers a download.
+   * is the gallery X's attach sheet reads from.
    */
   const tile = (
-    slot: Slot,
     square: { ref: React.RefObject<HTMLCanvasElement | null>; state: string; url: string | null },
-    label: string | null,
+    label: string,
   ) => (
     <button
       onClick={() => {
-        if (!save(square.ref.current, label ?? slot)) setBlocked(slot);
+        if (!save(square.ref.current, label)) setBlocked(true);
       }}
       className="overflow-hidden rounded-xl border border-border text-left"
     >
@@ -342,7 +460,7 @@ export default function PostImages({
       />
       {square.url && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={square.url} alt={label ?? slot} className="w-full" />
+        <img src={square.url} alt={label} className="w-full" />
       )}
       <span className="block px-2 py-1 text-[11px] text-text-muted">
         {label}
@@ -363,9 +481,8 @@ export default function PostImages({
         {both ? "The pair — same square, both ready" : "Only one square — pick a second below"}
       </p>
       <div className={`grid gap-2 ${both ? "grid-cols-2" : "grid-cols-1"}`}>
-        {showPhoto && tile("photo", photo, person)}
-        {showFace2 && tile("photo", face2, second)}
-        {showCrest && tile("crest", crest, teamPage)}
+        {showA && tile(a, aName)}
+        {showB && tile(b, bName)}
       </div>
 
       {both && (
@@ -377,36 +494,86 @@ export default function PostImages({
         </button>
       )}
 
-      {/* No photograph resolved. Rather than leaving the post imageless, point at where one
-          is, HLTV first because that is the look being matched. */}
-      {!showPhoto && (person || teamPage) && (
-        <div className="mt-2 rounded-md border border-dashed border-border p-2">
-          <p className="mb-1 text-xs text-text-muted">
-            No photo found for {person ?? teamPage}. Grab one:
+      {blocked && (
+        <p className="mt-2 text-xs text-amber">
+          That one is served by a host that will not let the page export it. Press and hold the
+          picture and save it that way.
+        </p>
+      )}
+
+      {hltvExtras.length > 0 && (
+        <div className="mt-3">
+          <p className="mb-2 text-xs uppercase tracking-wide text-text-low">
+            HLTV&apos;s own photo — press and hold to save
           </p>
-          <div className="flex flex-wrap gap-2">
-            {photoSearchLinks((person ?? teamPage) as string, wiki).map((link) => (
-              <a
-                key={link.label}
-                href={link.url}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="rounded-md border border-border px-2 py-1 text-xs text-blue"
-                title={link.note}
-              >
-                {link.label}
-              </a>
+          <div className={`grid gap-2 ${hltvExtras.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+            {hltvExtras.map((extra) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={extra.url}
+                src={extra.url}
+                alt={extra.label}
+                loading="lazy"
+                className="w-full rounded-xl border border-border"
+              />
             ))}
           </div>
+          {/* Saying why, because "why is this one not in the pair" is the obvious question. */}
+          <p className="mt-1 text-[11px] text-text-low">
+            Better photography, but HLTV blocks the page from turning it into a file — so it
+            cannot ride the share sheet. Save it and attach it by hand.
+          </p>
         </div>
       )}
 
-      {blocked && (
-        <p className="mt-2 text-xs text-amber">
-          That source will not let the image be saved from the canvas. Press and hold it to
-          save the picture directly instead.
-        </p>
+      {(!both || objectWanted) && (
+        <SearchHelp
+          subject={(person ?? teamPage ?? "Counter-Strike") as string}
+          wiki={wiki}
+          object={objectWanted}
+        />
       )}
+    </div>
+  );
+}
+
+/** Where to go looking when a slot came up empty, or when the quote wants a picture of a thing. */
+function SearchHelp({
+  subject,
+  wiki,
+  object,
+}: {
+  subject: string;
+  wiki: "counterstrike" | "valorant";
+  object: string | null;
+}) {
+  const links = object ? objectSearchLinks(object) : photoSearchLinks(subject, wiki);
+  return (
+    <div className="mt-2 rounded-md border border-dashed border-border p-2">
+      <p className="mb-1 text-xs text-text-muted">
+        {object ? (
+          <>
+            This one is about <span className="text-text">{object}</span> — a picture of it
+            beside the face is the pair that works:
+          </>
+        ) : (
+          <>No second picture found for {subject}. Grab one:</>
+        )}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {links.map((link) => (
+          <a
+            key={link.label}
+            href={link.url}
+            target="_blank"
+            rel="noreferrer noopener"
+            title={link.note}
+            className="rounded-md border border-border px-2 py-1 text-xs text-blue"
+          >
+            {link.label}
+          </a>
+        ))}
+      </div>
     </div>
   );
 }
