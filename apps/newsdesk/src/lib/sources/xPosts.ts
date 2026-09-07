@@ -52,6 +52,17 @@ interface Account {
    * throw away roster news that happens not to say the word "CS".
    */
   csOnly: boolean;
+  /**
+   * The Liquipedia page for the org that owns this account, where it is an org account.
+   *
+   * The post is ABOUT whoever posted it, and nothing in the text says so. A FURIA post
+   * reading "Já temos data marcada para voltar ao servidor!" named its next opponent and
+   * nothing else, so reading the team out of the text put the GamerLegion crest on FURIA's
+   * own announcement. The author is the one fact about a first-party post that is certain.
+   */
+  team?: string;
+  /** The player who owns this account, where it is a player account — same reasoning. */
+  player?: string;
 }
 
 /**
@@ -76,17 +87,17 @@ const ACCOUNTS: Account[] = [
   { handle: "strife_gg", label: "@strife_gg", note: "CS coverage", csOnly: false },
 
   // Players speaking for themselves — the most attributable quote there is.
-  { handle: "s1mpleO", label: "@s1mpleO", note: "first-party", csOnly: true },
-  { handle: "ZywOo", label: "@ZywOo", note: "first-party", csOnly: true },
-  { handle: "torzsi_", label: "@torzsi_", note: "first-party", csOnly: true },
+  { handle: "s1mpleO", label: "@s1mpleO", note: "first-party", csOnly: true, player: "s1mple" },
+  { handle: "ZywOo", label: "@ZywOo", note: "first-party", csOnly: true, player: "ZywOo" },
+  { handle: "torzsi_", label: "@torzsi_", note: "first-party", csOnly: true, player: "torzsi" },
 
   // Orgs announcing their own business.
-  { handle: "TeamVitality", label: "@TeamVitality", note: "first-party team news", csOnly: true },
-  { handle: "natusvincere", label: "@natusvincere", note: "first-party team news", csOnly: true },
-  { handle: "FaZeClan", label: "@FaZeClan", note: "first-party team news", csOnly: true },
-  { handle: "G2esports", label: "@G2esports", note: "first-party team news", csOnly: true },
-  { handle: "FURIA", label: "@FURIA", note: "first-party team news", csOnly: true },
-  { handle: "paiNGamingBR", label: "@paiNGamingBR", note: "first-party team news", csOnly: true },
+  { handle: "TeamVitality", label: "@TeamVitality", note: "first-party team news", csOnly: true, team: "Team Vitality" },
+  { handle: "natusvincere", label: "@natusvincere", note: "first-party team news", csOnly: true, team: "Natus Vincere" },
+  { handle: "FaZeClan", label: "@FaZeClan", note: "first-party team news", csOnly: true, team: "FaZe Clan" },
+  { handle: "G2esports", label: "@G2esports", note: "first-party team news", csOnly: true, team: "G2 Esports" },
+  { handle: "FURIA", label: "@FURIA", note: "first-party team news", csOnly: true, team: "FURIA Esports" },
+  { handle: "paiNGamingBR", label: "@paiNGamingBR", note: "first-party team news", csOnly: true, team: "paiN Gaming" },
 ];
 
 /**
@@ -171,6 +182,9 @@ async function fetchAccount(account: Account, deadline = Infinity): Promise<Feed
       image: photo ? `${photo}?format=jpg&name=large` : undefined,
       score: 0,
       reasons: [`${account.label} · ${post.favorite_count ?? 0} likes`],
+      // Who posted it beats what the text names. See Account.team.
+      ...(account.team ? { teamPage: account.team } : {}),
+      ...(account.player ? { playerName: account.player } : {}),
     });
   }
   return items;

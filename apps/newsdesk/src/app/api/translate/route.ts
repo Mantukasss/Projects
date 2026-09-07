@@ -5,12 +5,17 @@ import { correctNames, glossaryLines } from "@/lib/glossary";
 export const runtime = "nodejs";
 
 /**
- * Translates a Russian Telegram post into an English draft line.
+ * Translates a post in any language into an English draft line.
  *
- * The edge this app has is that Russian CS media breaks CIS roster news before English
- * outlets do, and most English CS accounts do not read it. That edge only pays if the post
- * comes out in English fast, so this produces the post line directly rather than a literal
- * translation to rewrite by hand.
+ * The edge this app has is that non-English CS media breaks news before the English outlets
+ * do, and most English CS accounts do not read it: Russian sources for CIS roster moves,
+ * Portuguese for the Brazilian scene, French for Vitality, Turkish for Eternal Fire. That
+ * edge only pays if the post comes out in English fast, so this produces the post line
+ * directly rather than a literal translation to rewrite by hand.
+ *
+ * It is not told which language it is reading. Naming it would mean guessing between
+ * Portuguese and Spanish on posts that share most of their vocabulary, and a model handed a
+ * wrong language label follows the label instead of the text.
  *
  * All the provider handling — model discovery, the reasoning-token budget, per-failure
  * reporting — lives in lib/llm.ts, because every one of those was learned here the hard way
@@ -22,19 +27,25 @@ export const runtime = "nodejs";
  * tells the audience the post was machine-made. Sounding native is the whole job.
  */
 const SYSTEM = [
-  "You translate Russian Counter-Strike esports posts into English for a CS2 news account.",
+  "You translate Counter-Strike esports posts into English for a CS2 news account.",
+  "The source may be in any language — Russian, Portuguese, Spanish, French, German,",
+  "Danish, Swedish, Turkish, Polish, Ukrainian, Chinese. Work it out from the text.",
   "Rules:",
+  "- If the text is ALREADY English, return it unchanged rather than rewriting it.",
   "- Return ONLY the English text. No preamble, no notes, no quotes around it.",
   "- Keep it under 200 characters and keep it factual. Do not add detail that is not there.",
   "- NEVER transliterate a name by how it sounds. Counter-Strike nicknames are stylised",
   "  and cannot be derived from their Cyrillic spelling: Монеси is m0NESY, not 'Montesko';",
   "  Ринкл is r1nkle, not 'Rinkl'; Соколов is the genitive of the TEAM Falcons, not a",
   "  person called Sokolov. If a name is not in the list below and you do not know its",
-  "  exact Latin spelling, leave it in Cyrillic. A left-alone name can be fixed in seconds;",
-  "  an invented one goes out looking like the account does not follow the game.",
-  "- If the original hedges (слух, сообщается, по слухам), keep the hedge in English.",
+  "  exact Latin spelling, leave it exactly as written. A left-alone name can be fixed in",
+  "  seconds; an invented one goes out looking like the account does not follow the game.",
+  "- If the original hedges (слух, сообщается, rumor, segundo, selon, angeblich), keep the",
+  "  hedge in English. A hedge dropped in translation turns a rumour into a report.",
   "- Drop advertising, emoji spam and channel self-promotion.",
-  "Use Counter-Strike vocabulary, not literal translations:",
+  "Use Counter-Strike vocabulary, not literal translations. The Russian column is spelled",
+  "out because Cyrillic sources are the most common; the same rule applies whatever the",
+  "language — a word no Counter-Strike account would write is wrong even if it is accurate:",
   "- снайпер -> AWPer (never 'sniper')",
   "- состав / ростер -> roster or lineup",
   "- скамейка / запас -> bench",
@@ -44,6 +55,9 @@ const SYSTEM = [
   "- трансфер / переход -> transfer or move",
   "- отбор / квалификация -> qualifier",
   "- лан -> LAN; мажор -> Major",
+  "- Portuguese/Spanish: line/lineup stays 'roster'; 'servidor' in a team post means the",
+  "  server, i.e. they are back to playing; 'confronto'/'enfrentamento' -> match or matchup",
+  "- French: 'effectif' -> roster; 'joueur remplaçant' -> stand-in; 'entraîneur' -> coach",
   ...glossaryLines(),
 ].join("\n");
 

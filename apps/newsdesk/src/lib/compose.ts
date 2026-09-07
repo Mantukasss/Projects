@@ -1,4 +1,5 @@
 import type { Draft, FeedItem } from "./types";
+import { isForeignScript } from "./language";
 import { brandOf } from "./teams";
 
 /**
@@ -170,11 +171,6 @@ export function compose(item: FeedItem): Draft {
     images: options,
     needsCard,
   };
-}
-
-/** Text in an alphabet this account's audience does not read. */
-function isForeignScript(text: string): boolean {
-  return /[\u0400-\u04FF]/.test(text);
 }
 
 export interface MediaOption {
