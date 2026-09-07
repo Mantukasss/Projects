@@ -436,16 +436,37 @@ deliberately NARROWER than `CS_RELEVANT`, which is full of words every esport us
 that one, "Rocket League roster update incoming" reads as Counter-Strike, because "roster" is
 in it. Team names are out of the overrule for the same reason — the org owns the LoL side too.
 
-HANDLES THAT DO NOT RESOLVE, so nobody guesses them again: `TheMongolZ`, `TeamSpiritCS`,
-`TeamSpirit`, `NIPGaming`, `TYLOO`, `Team3DMAX`, `AuroraGGTeam`, `SAWesports`,
-`IberianSoulGG`, `YawaraEsports`. Working equivalents found for two of them: `@NIP` and
-`@tyloogaming`. Spirit, The MongolZ, Aurora, 3DMAX and SAW are still missing — worth another
-look, since Spirit in particular is a top-two org whose announcements this app cannot see.
+**GET A HANDLE FROM LIQUIPEDIA'S INFOBOX. NEVER GUESS ONE.** The first round guessed and
+missed Spirit, The MongolZ, Aurora, SAW and FUT — including the org whose announcement
+started this. Every team page carries the official social links:
 
-**`@FUT_esports` resolves but the profile embeds only a 2021 post id**, so the scrape cannot
-reach their recent announcements — which is exactly the org in the story above. Some profiles
-embed recent ids and some do not; that is X's choice, not a bug here, and it is the ceiling
-on this technique. Where it bites, the org's news still arrives via HLTV, just later.
+```
+api.php?action=parse&page=<Team>&prop=wikitext&section=0&format=json   ->  read `twitter =`
+```
+
+That returned `Team__Spirit`, `1mongolz`, `AuroraCS2_GG`, `sawggofficial`, `futesportsgg` and
+`NIPCS` in one pass, all verified live and posting. Guessed handles that resolve to nothing
+are worse than no handle, because the sweep spends its budget on them.
+
+**THE FULL TIMELINE, which settles what "faster" costs and where it is won:**
+
+| Time | | |
+|---|---|---|
+| **13:35:24** | `@futesportsgg` | "The Mastermind stays. 🧠 We are thrilled to announce that we have renewed Krabeni's contract." |
+| 13:46:18 | `@Ozzny_CS2` | posts — **10m54s** after the announcement |
+| 13:49:00 | HLTV | article |
+| 13:49:37 | `@HLTVorg` | tweets it |
+
+The story sat in public for eleven minutes. Ozzny was not fast; everyone else was reading
+the wrong thing. With the org account wired and a 60-second id cache this app sees it inside
+a minute — ahead of him, not chasing him.
+
+**EVERY first-party account is `csOnly: true`, deliberately, including orgs with LoL and
+Valorant teams.** That FUT announcement names no game, no team and no word in the CS
+vocabulary, so the relevance test would have thrown away the exact post this is all about.
+An org's own announcement must never be filtered out. `OTHER_GAME` and `PROMO` remove the
+noise instead — and `PROMO` is anchored to commercial verbs, never to "sign" or "deal",
+because those are how a transfer is announced.
 
 ## Current state
 **Translation now covers every language, not just Russian.** `lib/language.ts` decides it;
