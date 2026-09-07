@@ -5,7 +5,8 @@ export type SourceId =
   | "steam"
   | "telegram"
   | "twitch"
-  | "vlr";
+  | "vlr"
+  | "youtube";
 
 /** How the item should be turned into a post. Drives the template in compose.ts. */
 export type Kind = "quote" | "roster" | "result" | "news";
