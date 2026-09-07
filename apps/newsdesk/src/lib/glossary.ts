@@ -93,12 +93,32 @@ export function glossaryLines(): string[] {
  * paragraph will happily invent "Montesko" inside it, and the only reliable fix is to
  * replace the string afterwards.
  */
+/**
+ * Characters a model reaches for that a person never types.
+ *
+ * Live output came back with "Counter\u2011Strike", "2\u20111" and "two\u2011year" — the
+ * non-breaking hyphen. It looks almost identical on screen, which is what makes it worth
+ * removing: a post full of characters nobody types is one of the quiet tells that it was
+ * machine-written, and it also breaks a reader's search for "Counter-Strike".
+ *
+ * Curly APOSTROPHES and quotation marks are deliberately NOT in here — both studied accounts
+ * use them, and straight quotes are the tell in the other direction.
+ */
+const TYPOGRAPHY: [RegExp, string][] = [
+  [/[\u2010\u2011\u2012]/g, "-"], // hyphen, non-breaking hyphen, figure dash
+  [/[\u00A0\u2007\u202F\u2009\u200A]/g, " "], // no-break and thin spaces
+  [/[\u200B-\u200D\uFEFF]/g, ""], // zero-width junk
+];
+
 export function correctNames(text: string): string {
   let out = text;
   for (const entry of [...PLAYERS, ...TEAMS]) {
     for (const form of entry.cyrillic) {
       out = out.replace(new RegExp(form, "gi"), entry.latin);
     }
+  }
+  for (const [pattern, replacement] of TYPOGRAPHY) {
+    out = out.replace(pattern, replacement);
   }
   return out;
 }
