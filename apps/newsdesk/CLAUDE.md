@@ -105,24 +105,37 @@ and the app gains Google sign-in copied from `apps/hub`.
   and only the fallback. Editorial is keyed to whoever the HEADLINE names: keying to every
   link meant one match report attached its photo to all ten players in it, so apEX, MOUZ and
   Spirit all resolved to the same picture.
-- **"Is it foreign?" is not an alphabet question.** The first version asked only whether the
-  text contained Cyrillic, so a FURIA post reading "Já temos data marcada para voltar ao
-  servidor!" went out untranslated — Portuguese is written in the same alphabet as English.
-  Half the orgs worth following post in Portuguese, Spanish or French. `lib/language.ts` now
-  runs two tests: unreadable SCRIPT (Cyrillic, Greek, Arabic, Hebrew, CJK, Thai, Korean),
-  and FUNCTION WORDS for Latin-alphabet languages — "para", "nous", "und", "för". Two hits
-  required, because one foreign word appears in English posts and a Translate button on an
-  English post trains the eye to ignore it. Content words are useless here: CS posts are
-  mostly names, and names travel. Diacritics deliberately do not count — "Håvard" and
-  "Zörter" are English-post material. Verified against the live feed: 6 of 60 flagged, all
-  six genuinely foreign, ZERO false positives across the other 54. Words that collide with
-  English are excluded by hand and the list of exclusions is the interesting part: German
-  "die", Polish "do", Danish "at" are English words; "eu" is how everyone writes Europe; and
-  "de"/"do" would fire on every map name, because "de_dust2" tokenises to "de" + "dust2".
-  Read a candidate as a CS word before adding it.
-  KNOWN BLIND SPOT: a post too short to contain two function words — "Tudo normal." — reads
-  as English and gets no button. Accepted, because loosening to one hit puts the button on
-  English posts, and a two-word post is not a story anyway.
+- **"Is it foreign?" IS NOT AN ALPHABET QUESTION, AND IT IS NOT A WORD-LIST QUESTION EITHER.**
+  Three versions; the first two failed the same way. v1 asked only "is there Cyrillic?" and a
+  Portuguese FURIA post went out untranslated. v2 added a list of foreign function words
+  needing two hits — then a Vitality post arrived reading "Chaque détail mène à la victoire.
+  Découvrez le complément alimentaire de nos joueurs !" and scored ZERO, because not one of
+  chaque/détail/mène/victoire/découvrez/joueurs was on a list that could never be long
+  enough. **Do not extend the list again. That is the mistake.**
+  v3 INVERTS THE QUESTION: instead of proving a post is foreign, prove it is ENGLISH. English
+  has a small CLOSED class of function words — the, with, from, for, that, have — and unlike
+  foreign vocabulary that class is finite. A post containing none of them is not English.
+  Paired with `franc-min`, because neither half works alone: franc alone called "Media day
+  photos from Porto" Portuguese, "Top 4 in Porto" Spanish and "Krabeni pens contract extension
+  with FUT" French — it latches onto proper nouns in short text. The English check vetoes all
+  three (from / in / with). Below five words nothing is trusted at all: "CS2 POV demo
+  recording", "Scout Ace 5x Hs Faceit" and "YINXING Future Star Festival" are four tokens of
+  proper nouns, which is exactly what a trigram model has nothing to say about.
+  Measured: 12 of 12 foreign sentences flagged (French, Portuguese ×4, Spanish, Russian,
+  Japanese, German, Danish, Turkish), 6 of 60 live items flagged with one soft false positive
+  — a fixture announcement that is mostly numbers and proper nouns.
+  KNOWN, ACCEPTED MISSES: short foreign fragments — "TOU NA BLAST CRL", "jugadon". They are
+  stream-clip titles, not posts anyone would make, and catching them means a Translate button
+  on half the English feed, which trains the eye to ignore it.
+- **TEST TITLE AND SUMMARY SEPARATELY. NEVER CONCATENATE THEM.** A summary is often the app's
+  OWN text, not the author's: Twitch appends "Clipped from BLASTPremier · 4 views", whose
+  "from" and "on" are real English function words, and concatenation let that boilerplate veto
+  the Portuguese title bolted to it — "Sempre a fazer porcaria este valamatos" was called
+  English by the app's own words. Use `anyForeign(title, summary)`.
+- **The language test runs on the SERVER and ships a boolean.** `franc-min` carries trigram
+  tables for eighty-odd languages and has no business in a phone bundle (first-load JS stayed
+  at 103 kB). `/api/feed` sets `item.foreign`; the card just reads it. `/api/translate`
+  likewise returns `stillForeign` rather than making the client re-run the detector.
 - **English never reaches the translator.** Told to return English text unchanged, the model
   rewrote "JUST IN: donk drops 30 kills as Team Spirit take Nuke off FaZe" into "donk scores
   30 kills as Team Spirit win Nuke over FaZe" — label gone, line reworded for nothing. An
