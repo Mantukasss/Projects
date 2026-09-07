@@ -6,6 +6,7 @@ export type SourceId =
   | "telegram"
   | "twitch"
   | "vlr"
+  | "x"
   | "youtube";
 
 /** How the item should be turned into a post. Drives the template in compose.ts. */

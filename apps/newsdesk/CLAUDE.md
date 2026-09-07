@@ -253,6 +253,25 @@ Vercel project `mantas-newsdesk` exists (Root Directory `apps/newsdesk`, product
 set `git.deploymentEnabled: false` — the template ships that flag on, which silently blocks
 every git-triggered build, so it was removed here to let pushes deploy.
 
+### X posts — how the browse actually works
+X has no free API and WebFetch gets 402, but public posts ARE readable in two steps:
+the profile page at `x.com/<handle>` is a JS shell whose HTML still embeds the ids of the
+newest few posts, and `cdn.syndication.twimg.com/tweet-result` — the endpoint X uses to
+render embeds — returns any public post's full text and media by id, unauthenticated, with
+a token derived arithmetically from the id. Neither step needs a key.
+
+This yields the newest ~6 per account and WILL break whenever X changes either page: treat
+a sudden empty result as that, not as the accounts going quiet. Requests are sequential
+because parallel scraping of one host gets blocked.
+
+Why it matters: a post carries its author, so a quote arrives already attributable to the
+handle that said it — which is exactly what a news account needs and what a transcript
+lacks. Scored highest for that reason.
+
+Automatic transcription of interviews is NOT available: YouTube serves servers a 3KB stub
+so caption tracks cannot be reached, and its captions endpoint requires being the video's
+owner. Do not spend time re-testing that.
+
 ### YouTube — the interview source
 `youtube.ts` reads HLTV's channel, which carries HLTV Confirmed: their talk show, three
 hundred-odd episodes of players and analysts on the record. Episode titles are effectively a

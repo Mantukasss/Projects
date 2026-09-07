@@ -33,6 +33,7 @@ const SOURCE_TONE: Record<FeedItem["source"], string> = {
   telegram: "text-teal",
   twitch: "text-purple",
   youtube: "text-coral",
+  x: "text-text",
   vlr: "text-green",
 };
 
@@ -49,16 +50,12 @@ export default function ItemCard({
   item,
   handle,
   posted,
-  cardMade,
   onTogglePosted,
-  onMakeCard,
 }: {
   item: FeedItem;
   handle: string;
   posted: boolean;
-  cardMade: boolean;
   onTogglePosted: () => void;
-  onMakeCard: (item: FeedItem) => void;
 }) {
   const [detail, setDetail] = useState<{ teams: string[]; keyFact: string | null; images: string[] } | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -192,13 +189,11 @@ export default function ItemCard({
   // that is the difference between a post that gets looked at and one that gets scrolled.
   // Every option stays on screen; only the ones that actually loaded are counted as ready.
   const loadedCount = draft.images.filter((option) => !deadImages.includes(option.url)).length;
-  const attachmentCount = loadedCount + extraImages.length + (cardMade ? 1 : 0);
+  const attachmentCount = loadedCount + extraImages.length;
   const hasMedia = attachmentCount >= 2;
 
   const blocked =
-    (Boolean(item.incomplete) && detail === null) ||
-    (needsTranslation && !translated) ||
-    !hasMedia;
+    (Boolean(item.incomplete) && detail === null) || (needsTranslation && !translated);
 
   const loadDetail = async () => {
     setLoadingDetail(true);
@@ -493,25 +488,6 @@ export default function ItemCard({
         >
           {copied === "reply" ? <IconCheck size={18} stroke={1.5} /> : <IconCopy size={18} stroke={1.5} />}
           {copied === "reply" ? "Copied" : "Copy reply 1"}
-        </button>
-        <button
-          onClick={() => onMakeCard(source)}
-          className={`flex min-h-11 items-center justify-center gap-2 rounded-md border text-sm transition-colors duration-150 ease-out ${
-            cardMade
-              ? "border-green text-green"
-              : draft.needsCard
-                ? "border-coral text-coral"
-                : "border-border text-text-muted hover:text-text"
-          }`}
-        >
-          <IconPhotoPlus size={18} stroke={1.5} />
-          {cardMade
-            ? "Image ready"
-            : draft.needsCard
-              ? needsTranslation
-                ? "Build English image"
-                : "Build image"
-              : "Extra image"}
         </button>
         <a
           href={item.url}
