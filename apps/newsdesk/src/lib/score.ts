@@ -94,6 +94,20 @@ export function scoreItem(item: FeedItem): FeedItem {
 }
 
 /** Same story from two sources is one story. Keeps the highest-scoring copy. */
+/**
+ * Collapses the same story from several sources into one card — by MERGING, not discarding.
+ *
+ * It used to keep whichever copy scored higher and throw the rest away, which lost real
+ * information. HLTV published "Krabeni pens contract extension with FUT" at 13:49:00 with a
+ * standfirst, a photo and an article URL that /api/detail can read; @HLTVorg tweeted the
+ * same headline 37 seconds later with an empty summary and no photo. The tweet scored higher
+ * on freshness and won, so the card lost the summary, the picture and the readable link.
+ *
+ * So: the higher score still decides the RANKING and the headline, and everything it is
+ * missing is filled in from the copy it beat. The timestamp becomes the EARLIEST of the two,
+ * because that is when the story actually broke — a later copy of the same news does not
+ * make it newer, and treating it as newer is how a feed flatters itself about being first.
+ */
 export function dedupe(items: FeedItem[]): FeedItem[] {
   const seen = new Map<string, FeedItem>();
   for (const item of items) {
@@ -105,7 +119,32 @@ export function dedupe(items: FeedItem[]): FeedItem[] {
       .slice(0, 6)
       .join(" ");
     const existing = seen.get(key);
-    if (!existing || item.score > existing.score) seen.set(key, item);
+    if (!existing) {
+      seen.set(key, item);
+      continue;
+    }
+    const [winner, loser] = item.score > existing.score ? [item, existing] : [existing, item];
+    seen.set(key, {
+      ...winner,
+      summary: winner.summary || loser.summary,
+      image: winner.image ?? loser.image,
+      videoUrl: winner.videoUrl ?? loser.videoUrl,
+      teamPage: winner.teamPage ?? loser.teamPage,
+      playerName: winner.playerName ?? loser.playerName,
+      /**
+       * An HLTV article beats a tweet about it as the link, whichever scored higher: it is
+       * the thing /api/detail can actually read for the teams and the numbers a headline
+       * promised, and it is what "Verify" should open.
+       */
+      url: winner.source === "hltv" ? winner.url : loser.source === "hltv" ? loser.url : winner.url,
+      source: winner.source === "hltv" || loser.source !== "hltv" ? winner.source : loser.source,
+      publishedAt:
+        Date.parse(loser.publishedAt) < Date.parse(winner.publishedAt)
+          ? loser.publishedAt
+          : winner.publishedAt,
+      // Both reasons, so the card can say it was carried in two places.
+      reasons: [...new Set([...winner.reasons, ...loser.reasons])],
+    });
   }
   return [...seen.values()];
 }
