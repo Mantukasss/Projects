@@ -117,6 +117,11 @@ and the app gains Google sign-in copied from `apps/hub`.
   "Zörter" are English-post material. Verified against the live feed: 3 of 60 flagged, all
   three genuinely foreign, no false positives. Words that collide with English are excluded
   by hand — German "die", Polish "do", Danish "at" — check before adding one.
+- **English never reaches the translator.** Told to return English text unchanged, the model
+  rewrote "JUST IN: donk drops 30 kills as Team Spirit take Nuke off FaZe" into "donk scores
+  30 kills as Team Spirit win Nuke over FaZe" — label gone, line reworded for nothing. An
+  instruction a model reliably disobeys is not a rule, so `/api/translate` short-circuits on
+  `needsTranslation` before calling out. Same test as the button, so the two cannot disagree.
 - **The translator is never told which language it is reading.** Portuguese and Spanish share
   most of their function words, so labelling would mean guessing, and a model handed a wrong
   language label follows the label instead of the text. It gets the text and works it out.
@@ -253,7 +258,9 @@ never in the body.
 **Translation now covers every language, not just Russian.** `lib/language.ts` decides it;
 `/api/translate` takes any source language and is never told which. Verified against the live
 feed: 3 of 60 items flagged (two Portuguese X posts, one Russian Twitch title), 57 English
-items untouched. First-party X posts now carry the crest of the account that POSTED them
+items untouched. Exercised against the live deployment in Portuguese, Spanish, French and
+Russian — the FURIA line came back "We already have a date set to return to the server!" and
+the Russian one resolved Соколов/Монеси to Falcons/m0NESY, so the glossary still holds. First-party X posts now carry the crest of the account that POSTED them
 rather than of whatever team the text happens to name.
 
 **Live at https://mantas-newsdesk.vercel.app** and verified there: the deployed `/api/feed`
@@ -341,8 +348,6 @@ three). The route is Twitch clips, which needs a free Twitch app (client id + se
 one meaningful source still missing.
 
 ## Next
-- Verify the widened translation on the live deployment — the LLM keys are only in Vercel, so
-  the new prompt could not be exercised locally. Open a Portuguese X card and translate it.
 - Deploy: run `node apps/hub/scripts/setup-vercel-project.mjs --repo projects --name mantas-newsdesk --slug newsdesk`, then fix the real URL in `apps/hub/config/apps.json`.
 - Add `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET` to the Vercel project to turn the Twitch source on. The code is wired and reports "Twitch keys not configured" until they exist.
 - Translate and classify the Russian Telegram posts. Needs a free `GROQ_API_KEY` or `GEMINI_API_KEY` added to the Vercel project — neither is set today, which is why `looksLikeNews` is a regex rather than comprehension.
