@@ -5,68 +5,87 @@ import { correctNames, glossaryLines } from "@/lib/glossary";
 export const runtime = "nodejs";
 
 /**
- * Writes the post the way the accounts worth copying write it.
+ * Writes the post in the shape @Ozzny_CS2 and @cs2files actually use.
  *
- * The shape that works in this scene leads with the sharpest thing the person actually
- * said, attributes it, and only then gives the reasoning:
+ * Eleven of their posts were fetched and read to get this, and the shape is narrower than
+ * what this prompt used to ask for. Every post is three blocks:
  *
- *   "If I were 10 years younger, I would have beaten donk and s1mple" — TaZ
+ *     donk on what makes tN1R so good:
  *
- *   "It's impossible to compare, because I look at how they play and well, if I were
- *   10 or 15 years younger, I would easily beat them..."
+ *     "tN1R is an insane aimer, but his biggest strength is how well he understands space
+ *     on the map. He moves really well and constantly finds gaps."
  *
- *   TaZ won three straight Majors with Virtus.pro.
+ *     donk believes game sense and movement are what really separate the top players.
  *
- * The hook is the speaker's own words, not a summary of them. A summary asks the reader to
- * take the account's word for why this matters; a bold claim in quotation marks makes the
- * case by itself, and it is the reason someone stops scrolling. Picking WHICH line is the
- * editorial judgement, and it needs the whole article — which is why HLTV pieces are
- * fetched before this runs.
+ * THE CHANGE FROM THE OLD PROMPT, and why: it used to ask for a "hook" — the speaker's
+ * boldest line, in quotation marks, ON LINE ONE. Neither account does that, in any post.
+ * They say what the quote is ABOUT and then let you read it. The lead is a promise and the
+ * quote is the payoff; opening with the payoff spends it, and the reader has no reason to
+ * keep going. So the model now writes a LEAD SENTENCE in its own words, and the quote sits
+ * underneath, untouched.
  *
- * It also returns everyone named, because a quote about donk and s1mple wants photographs
- * of donk and s1mple, not a team crest.
+ * The other change is the emoji. Ozzny closes his lead line with exactly one — 😭 when a
+ * player is being candid, 💀 when someone is being humiliated, 🥶 at a number nobody
+ * expected — and which one is a judgement about tone that needs the story, so the model
+ * picks it. compose.ts supplies a dull default when it declines.
  *
- * The hard constraint is that nothing may be invented. A news account's entire value is
- * that its posts are true, and a model asked to write engagingly will reach for detail it
- * does not have. The prompt forbids it and the quote is passed through verbatim rather
- * than regenerated, so the one part that must be exact cannot drift.
+ * The hard constraint is unchanged and is the whole value of the account: nothing may be
+ * invented. The quote is passed through verbatim rather than regenerated, so the one part
+ * that must be exact cannot drift.
  */
 const SYSTEM = [
   "You write posts for a Counter-Strike news account on X. Reply with JSON only.",
   "",
+  "EVERY post is: a LEAD sentence, then the body, then one closing fact.",
+  "",
   "First decide which kind of post this is.",
   "",
-  'QUOTE — the source carries someone\'s words worth leading with. Shape:',
-  '{"kind":"quote","hook":"...","speaker":"...","quote":"...","context":"...","people":["..."]}',
-  "  hook — the single most arresting line the speaker actually said, word for word, short",
-  "    enough to read at a glance. Pick the boldest claim, never the opening sentence.",
-  '    GOOD: If I were 10 years younger, I would have beaten donk and s1mple',
-  '    BAD:  It is impossible to compare because I look at how they play',
-  "  speaker — who said it. quote — the fuller passage, copied EXACTLY. May be empty.",
+  "QUOTE — the source carries someone's words worth reading. Shape:",
+  '{"kind":"quote","lead":"...","emoji":"...","speaker":"...","quote":"...","context":"...","list":[],"people":["..."]}',
+  "  lead — ONE sentence, YOUR words, saying who is speaking and what about. It is the",
+  "    reason someone reads the quote, so it must promise something.",
+  "    GOOD: donk on what makes tN1R so good:",
+  "    GOOD: magixx revealed the strategy he used to reset after MOUZ came back on Mirage",
+  "    BAD:  \u201CIf I were 10 years younger I would have beaten donk\u201D — TaZ",
+  "    The bad one is the quote itself. Never put the quote in the lead: the lead sets it",
+  "    up, the next block delivers it. Opening with the payoff wastes it.",
+  "  speaker — who said it, nickname only.",
+  "  quote — their words, copied EXACTLY, with no quotation marks around it. Two to four",
+  "    sentences is ideal; trim to the part that earns the lead, never reword it.",
   "",
   "STORY — something happened and there is no quote worth leading with. Shape:",
-  '{"kind":"story","opening":"...","reason":"...","consequence":"...","context":"...","people":["..."]}',
-  "  opening — what happened, in YOUR OWN WORDS, carrying the turn that makes it a story.",
-  '    GOOD: FlyQuest were set to play the IEM Beijing Qualifier final... but had to forfeit',
-  '    BAD:  FlyQuest forfeit their match',
-  "    The bad one states an outcome; the good one sets up an expectation and breaks it,",
-  "    which is what makes someone read the next line.",
-  "  reason — the single detail that explains it. One line.",
-  '    GOOD: internet issues on their end meant playing on 200+ ping',
-  "  consequence — what it means now, or who it affects. May be empty.",
+  '{"kind":"story","lead":"...","emoji":"...","background":"...","context":"...","list":[],"people":["..."]}',
+  "  lead — ONE sentence stating the news, in YOUR words, complete on its own.",
+  "    GOOD: ruggah has officially retired from coaching after more than a decade in CS",
+  "    BAD:  JUST IN: ruggah retires",
+  "    The bad one is a label plus a headline. Write the sentence a publication writes.",
+  "  background — one paragraph of what a reader needs in order to care: the career, the",
+  "    history, the run-up. This is what makes it reporting rather than an alert.",
+  "    GOOD: The Danish coach worked with Dignitas, North, OpTic, OG and most recently",
+  "          Astralis, winning EPICENTER with Dignitas along the way.",
   "",
   "Both shapes also take:",
-  "  context — one short supporting fact from the source. Empty string if there is none.",
-  "  people — every player or personality NAMED, as nicknames only, speaker first.",
+  "  emoji — ONE emoji closing the lead line, picked for the tone of THIS story. Empty",
+  "    string if none fits, which is better than a wrong one.",
+  "    \uD83D\uDE2D a player being candid or emotional \u00B7 \uD83D\uDC80 someone getting humiliated",
+  "    \uD83E\uDD76 a number nobody expected \u00B7 \uD83D\uDC40 a reveal or a comparison \u00B7 \uD83C\uDFC6 a title won",
+  "  context — one short closing fact from the source: what it means now, or the number",
+  "    that proves the lead. Empty string if there is none.",
+  "  list — ONLY when the source gives two or more PARALLEL items (trophies won, players",
+  "    qualified, a head-to-head of numbers). Each entry one short line, no bullet",
+  '    character. GOOD: ["NiKo: 9","donk: 10"]. Otherwise an empty array.',
+  "  people — every player or personality NAMED, nicknames only, speaker first.",
   "",
   "Rules:",
   "- Retell the FACTS in your own words. Facts are nobody's property; sentences are.",
-  "  Never reuse the source's phrasing outside a direct quote — the post has to read as",
-  "  yours, not as a repost of the account you read it on.",
+  "  Never reuse the source's phrasing outside the quote — the post has to read as yours,",
+  "  not as a repost of the account you read it on.",
   "- Invent NOTHING. Every name, number, team and claim must appear in the source text.",
-  "- Never reword anything inside hook or quote. Those are the speaker's words.",
+  "- Never reword anything inside quote. Those are the speaker's words.",
   "- If unsure of a detail, leave it out rather than guessing.",
-  "- Plain English, no hype, no emoji, no hashtags, no links.",
+  "- NO \u2018JUST IN\u2019, NO \u2018RUMOR:\u2019, no label of any kind in front of the lead.",
+  "- No hashtags, no links, no source credit, and no emoji anywhere except the emoji field.",
+  "- Plain English, no hype.",
   "- Use Counter-Strike vocabulary: AWPer not sniper, roster not squad list, IGL, LAN, Major.",
   "- NEVER transliterate a name by how it sounds, and never guess a Latin spelling. If you",
   "  do not know one exactly, leave the name as the source wrote it.",
@@ -103,36 +122,52 @@ export async function POST(request: Request) {
     const raw = await ask(SYSTEM, source);
     const parsed = parseJson<{
       kind?: string;
-      hook?: string;
+      lead?: string;
+      emoji?: string;
       speaker?: string;
       quote?: string;
-      opening?: string;
-      reason?: string;
-      consequence?: string;
+      background?: string;
       context?: string;
+      list?: string[];
       people?: string[];
     }>(raw);
 
     const kind = parsed?.kind === "story" ? "story" : "quote";
-    // Each shape has one field it cannot do without.
-    const usable = kind === "story" ? parsed?.opening : parsed?.hook;
-    if (!usable) {
+    // The lead is the one field neither shape can do without — it IS the post's first line.
+    if (!parsed?.lead?.trim()) {
       return NextResponse.json({ error: "model returned no usable write-up" }, { status: 502 });
     }
 
+    /**
+     * One emoji, or none.
+     *
+     * A model asked for an emoji sometimes returns a word, a sentence, or three of them.
+     * Anything carrying a letter or a digit, or running longer than three code points, is
+     * dropped rather than shipped into the first line of a post.
+     */
+    const emoji = (parsed.emoji ?? "").trim();
+    const usableEmoji = [...emoji].length <= 3 && !/[\p{L}\p{N}]/u.test(emoji) ? emoji : "";
+
     return NextResponse.json({
       kind,
-      hook: correctNames((parsed?.hook ?? "").trim()),
-      speaker: correctNames((parsed?.speaker ?? "").trim()),
-      quote: correctNames((parsed?.quote ?? "").trim()),
-      opening: correctNames((parsed?.opening ?? "").trim()),
-      reason: correctNames((parsed?.reason ?? "").trim()),
-      consequence: correctNames((parsed?.consequence ?? "").trim()),
-      context: correctNames((parsed?.context ?? "").trim()),
+      lead: correctNames(parsed.lead.trim()),
+      emoji: usableEmoji,
+      speaker: correctNames((parsed.speaker ?? "").trim()),
+      quote: correctNames((parsed.quote ?? "").trim()),
+      background: correctNames((parsed.background ?? "").trim()),
+      context: correctNames((parsed.context ?? "").trim()),
+      // A one-item list is not a list — it would render as a stray "> ". Drop it.
+      list: (() => {
+        const list = (parsed.list ?? [])
+          .map((entry) => correctNames(String(entry).trim().replace(/^[>\-\u2022*]\s*/, "")))
+          .filter(Boolean)
+          .slice(0, 6);
+        return list.length >= 2 ? list : [];
+      })(),
       // Nicknames only, deduped — each becomes a photo the post can attach.
       people: [
         ...new Set(
-          (parsed?.people ?? []).map((p) => correctNames(String(p).trim())).filter(Boolean),
+          (parsed.people ?? []).map((p) => correctNames(String(p).trim())).filter(Boolean),
         ),
       ].slice(0, 4),
     });
