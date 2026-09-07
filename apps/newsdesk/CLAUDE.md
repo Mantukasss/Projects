@@ -114,9 +114,15 @@ and the app gains Google sign-in copied from `apps/hub`.
   required, because one foreign word appears in English posts and a Translate button on an
   English post trains the eye to ignore it. Content words are useless here: CS posts are
   mostly names, and names travel. Diacritics deliberately do not count — "Håvard" and
-  "Zörter" are English-post material. Verified against the live feed: 3 of 60 flagged, all
-  three genuinely foreign, no false positives. Words that collide with English are excluded
-  by hand — German "die", Polish "do", Danish "at" — check before adding one.
+  "Zörter" are English-post material. Verified against the live feed: 6 of 60 flagged, all
+  six genuinely foreign, ZERO false positives across the other 54. Words that collide with
+  English are excluded by hand and the list of exclusions is the interesting part: German
+  "die", Polish "do", Danish "at" are English words; "eu" is how everyone writes Europe; and
+  "de"/"do" would fire on every map name, because "de_dust2" tokenises to "de" + "dust2".
+  Read a candidate as a CS word before adding it.
+  KNOWN BLIND SPOT: a post too short to contain two function words — "Tudo normal." — reads
+  as English and gets no button. Accepted, because loosening to one hit puts the button on
+  English posts, and a two-word post is not a story anyway.
 - **English never reaches the translator.** Told to return English text unchanged, the model
   rewrote "JUST IN: donk drops 30 kills as Team Spirit take Nuke off FaZe" into "donk scores
   30 kills as Team Spirit win Nuke over FaZe" — label gone, line reworded for nothing. An
@@ -257,8 +263,8 @@ never in the body.
 ## Current state
 **Translation now covers every language, not just Russian.** `lib/language.ts` decides it;
 `/api/translate` takes any source language and is never told which. Verified against the live
-feed: 3 of 60 items flagged (two Portuguese X posts, one Russian Twitch title), 57 English
-items untouched. Exercised against the live deployment in Portuguese, Spanish, French and
+feed: 6 of 60 items flagged (five Portuguese X posts, one Russian Twitch title), 54 English
+items untouched with no false positives. Exercised against the live deployment in Portuguese, Spanish, French and
 Russian — the FURIA line came back "We already have a date set to return to the server!" and
 the Russian one resolved Соколов/Монеси to Falcons/m0NESY, so the glossary still holds. First-party X posts now carry the crest of the account that POSTED them
 rather than of whatever team the text happens to name.
