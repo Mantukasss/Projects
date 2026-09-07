@@ -26,11 +26,13 @@ import { decodeEntities } from "./fetchXml";
  * empty shell because it loads its entries from a gated client call. So the answer is
  * breadth: many accounts, five each, rather than one account and fifty.
  *
- * Because that means a lot of requests, the sweep runs against a TIME BUDGET and starts at a
- * rotating offset. One refresh covers as many accounts as it can afford; the next starts
- * where pressure is different, and Vercel's shared Data Cache means most of what it revisits
- * is already there. Over a few minutes every account gets read without any single request
- * paying for all of them.
+ * THE SWEEP IS CONCURRENT, and the note that used to be here saying it could not be was
+ * simply wrong — asserted, never tested. Measured: 29 accounts and 87 posts in 2.7 seconds at
+ * concurrency 10, with zero failed requests; sequentially the same work read SEVEN accounts
+ * inside its budget, so a given org was seen about every four minutes. That gap was the
+ * difference between having an announcement and not. Concurrency is held at a modest 6 —
+ * enough to read every account on every refresh with room to spare, low enough not to look
+ * like an attack from an IP this app does not control.
  *
  * It will break whenever X changes either page — treat a sudden empty result as that, not
  * as the accounts going quiet.
@@ -80,6 +82,31 @@ interface Account {
  * Enough to tell a Counter-Strike post from a general gaming one. Team and player names
  * carry most of the weight, because a real CS post names somebody.
  */
+/**
+ * Another game, named. Almost every org in the list runs more than one team.
+ *
+ * This is the filter the CS_RELEVANT test cannot do on its own. A dedicated CS account's
+ * posts are taken whole — filtering those would drop roster news that happens not to say
+ * "CS" — but an org account posts about all its divisions, and "Lots of MOBA action this
+ * weekend" and "A SUPER #FURIALOL VENCE!" both arrived in the feed from orgs marked as
+ * CS-only. Naming another game is near-perfect evidence the post is not ours, and unlike a
+ * positive CS test it cannot throw away an announcement for being tersely worded.
+ */
+const OTHER_GAME =
+  /\b(lol|league of legends|valorant|val|dota\s?2?|rocket league|rl|apex|fortnite|r6|rainbow six|siege|pubg|overwatch|ow2|mobile legends|free fire|wild rift|tft|teamfight|starcraft|honor of kings|efootball|fifa|ea fc|f1|nba2k|brawl stars|clash royale|moba)\b|#\w*(lol|val|rl|dota|ff|ml)\b/i;
+
+/**
+ * Unmistakably Counter-Strike, used ONLY to overrule OTHER_GAME.
+ *
+ * Deliberately narrower than CS_RELEVANT, which is full of words every esport uses —
+ * "roster", "LAN", "Major", "IGL" — and of team names belonging to orgs that also field LoL
+ * and Valorant sides. Judged by those, "Rocket League roster update incoming" reads as
+ * Counter-Strike. What cannot be mistaken is the game's own name, its maps, its weapons and
+ * its players.
+ */
+const DEFINITELY_CS =
+  /\b(cs2|csgo|cs|counter-?strike|hltv|awp(er)?|ak-?47|m4a1|deagle|vertigo|mirage|inferno|nuke|ancient|dust2|anubis|overpass|train|s1mple|donk|zywoo|m0nesy|niko|ropz|ap[eE]X|torzsi|xertion|frozen|broky|karrigan|magixx|sh1ro|zont1x|molodoy|jame|fallen|device|blast premier|iem katowice|iem cologne)\b/i;
+
 const CS_RELEVANT =
   /\b(cs2|csgo|counter-?strike|hltv|blast|iem|esl|pgl|major|awp(er)?|igl|lan|vertigo|mirage|inferno|nuke|ancient|dust2|anubis|train|overpass|roster|stand-?in|vitality|navi|natus vincere|spirit|falcons|mouz|g2|furia|faze|astralis|liquid|heroic|mongolz|aurora|fnatic|nip|ninjas in pyjamas|virtus|betboom|3dmax|gamerlegion|eternal fire|pain gaming|imperial|legacy|tyloo|complexity|nrg|m80|wildcard|s1mple|donk|zywoo|m0nesy|niko|ropz|apex|torzsi|xertion|frozen|broky|karrigan|magixx|sh1ro|zont1x|molodoy|jame|jl|fallen)\b/i;
 
@@ -146,7 +173,17 @@ const ACCOUNTS: Account[] = [
  * shared Data Cache anyway — the budget only bites when the cache is cold.
  */
 const FIRST_PARTY_BUDGET_MS = 7000;
-const MEDIA_BUDGET_MS = 3000;
+const MEDIA_BUDGET_MS = 4000;
+
+/**
+ * How many accounts to read at once.
+ *
+ * Six covers all the first-party accounts in under five seconds measured, against ten's
+ * under three. The headroom is deliberate: this runs from Vercel's shared egress IPs rather
+ * than the one it was measured on, and a scrape that gets an address blocked costs far more
+ * than a second saved.
+ */
+const CONCURRENCY = 6;
 
 /**
  * How long a profile's list of post ids may be reused.
@@ -232,6 +269,12 @@ async function fetchAccount(account: Account, deadline = Infinity): Promise<Feed
     if (text.length < 25) continue;
     // A general-gaming account has to prove the post is about Counter-Strike.
     if (!account.csOnly && !CS_RELEVANT.test(text)) continue;
+    /**
+     * Any account, even a CS-only one, loses a post that names another game — unless it
+     * ALSO names something unmistakably Counter-Strike, which is how a "our CS and VAL teams
+     * both qualified" post survives.
+     */
+    if (OTHER_GAME.test(text) && !DEFINITELY_CS.test(text)) continue;
 
     const [first, ...rest] = text.split(/(?<=[.!?:])\s+/);
     const photo = post.mediaDetails?.find((m) => m.type === "photo")?.media_url_https;
@@ -261,24 +304,30 @@ export async function fetchXPosts(): Promise<FeedItem[]> {
   const items: FeedItem[] = [];
 
   /**
-   * One pass over a group, starting at a rotating offset.
+   * One pass over a group, CONCURRENCY accounts at a time, starting at a rotating offset.
    *
-   * The offset means no account is permanently last in the queue and therefore permanently
-   * unread when the budget runs out. Sequential because this is a scrape of one host and
-   * parallel requests get it blocked.
+   * The offset used to matter a great deal — it decided which accounts a sequential sweep
+   * could afford before its budget ran out. Now that a whole group fits comfortably inside
+   * the budget it is only insurance for the day a group grows past what the budget covers.
    */
   const sweep = async (group: Account[], budgetMs: number) => {
     if (group.length === 0) return;
     const deadline = Date.now() + budgetMs;
     const offset = Math.floor(Date.now() / 60_000) % group.length;
-    for (const account of [...group.slice(offset), ...group.slice(0, offset)]) {
-      if (Date.now() > deadline) break;
-      try {
-        items.push(...(await fetchAccount(account, deadline)));
-      } catch {
-        // One account failing must not lose the others.
-      }
-    }
+    const queue = [...group.slice(offset), ...group.slice(0, offset)];
+
+    await Promise.all(
+      Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
+        for (let account = queue.shift(); account; account = queue.shift()) {
+          if (Date.now() > deadline) return;
+          try {
+            items.push(...(await fetchAccount(account, deadline)));
+          } catch {
+            // One account failing must not lose the others.
+          }
+        }
+      }),
+    );
   };
 
   // First party first, always. See FIRST_PARTY_BUDGET_MS.

@@ -403,7 +403,7 @@ large and white on solid brand red, filling a 360 square. That was confirmed, no
 he was not reading HLTV. Contract and roster news breaks on the ORG'S OWN ACCOUNT, because
 the org controls the announcement, and everyone else reports it afterwards.
 
-Three fixes, in order of how much they matter:
+Four fixes, in order of how much they matter:
 
 1. **26 first-party org accounts, every handle verified live** (fetched, newest post read back
    to confirm the account is right and still posting). They are read on EVERY refresh, ahead
@@ -414,12 +414,27 @@ Three fixes, in order of how much they matter:
    chased. First-party accounts now refresh their id list at 60s and read three posts deep
    instead of six; an announcement is always the newest post, so depth was buying nothing and
    costing requests. Media accounts keep 300s and six, because nothing breaks there first.
-3. **Dedupe threw away the better copy.** It kept whichever duplicate scored higher and
+3. **THE SWEEP IS CONCURRENT, and the note saying it could not be was simply wrong** —
+   asserted in a comment, never tested. Measured: 29 accounts and 87 posts in **2.7s at
+   concurrency 10** and 4.8s at 6, with zero failed requests; the sequential version read
+   SEVEN accounts inside the same budget, so any one org was seen about every four minutes.
+   That gap was the difference between having an announcement and not. Held at 6 rather than
+   10 because production runs from Vercel's shared egress IPs, and getting one blocked costs
+   far more than two seconds saved.
+4. **Dedupe threw away the better copy.** It kept whichever duplicate scored higher and
    dropped the rest, so the @HLTVorg tweet (empty summary, no photo, unreadable link) beat
    HLTV's own article (standfirst, photo, URL `/api/detail` can read) on a freshness bonus.
    It now MERGES: the higher score still sets the ranking and the headline, missing fields are
    filled from the copy it beat, an HLTV article URL always wins the link, and the timestamp
    becomes the EARLIEST of the two — a later copy of the same news does not make it newer.
+
+**Almost every org runs a LoL and a Valorant team, so an org account is not a CS account.**
+"Lots of MOBA action this weekend" and "A SUPER #FURIALOL VENCE!" both reached the feed from
+accounts marked CS-only. `OTHER_GAME` drops any post naming another game, overruled only by
+`DEFINITELY_CS` — the game's own name, its maps, its weapons, its players. The overrule is
+deliberately NARROWER than `CS_RELEVANT`, which is full of words every esport uses: judged by
+that one, "Rocket League roster update incoming" reads as Counter-Strike, because "roster" is
+in it. Team names are out of the overrule for the same reason — the org owns the LoL side too.
 
 HANDLES THAT DO NOT RESOLVE, so nobody guesses them again: `TheMongolZ`, `TeamSpiritCS`,
 `TeamSpirit`, `NIPGaming`, `TYLOO`, `Team3DMAX`, `AuroraGGTeam`, `SAWesports`,
