@@ -39,6 +39,15 @@ export interface FeedItem {
    * card resolves it to a badge so a post about a team goes out wearing that team's crest.
    */
   teamPage?: string;
+  /**
+   * True when the post is not in English and cannot go out as written.
+   *
+   * Decided on the SERVER so the language detector — which carries trigram tables for
+   * eighty-odd languages — never ships to the phone, and so the title and the summary can be
+   * judged separately. See lib/language.ts: a summary is often the app's own boilerplate and
+   * its English vetoes the author's foreign title when the two are concatenated.
+   */
+  foreign?: boolean;
   /** Nickname of the player this item is about, guessed from the headline. See players.ts. */
   playerName?: string;
   /** Counter-Strike item named in the headline ("AK-47 | Redline"). See csItems.ts. */

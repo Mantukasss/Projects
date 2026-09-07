@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { LlmError, ask, hasLlmKey } from "@/lib/llm";
 import { correctNames, glossaryLines } from "@/lib/glossary";
-import { needsTranslation } from "@/lib/language";
+import { anyForeign, needsTranslation } from "@/lib/language";
 
 export const runtime = "nodejs";
 
@@ -87,12 +87,21 @@ export async function POST(request: Request) {
    * line that was already right. An instruction a model reliably disobeys is not a rule, so
    * this is enforced here. It also saves the call.
    */
-  if (!needsTranslation(text)) return NextResponse.json({ text });
+  if (!anyForeign(text)) return NextResponse.json({ text, stillForeign: false });
 
   try {
     // The prompt is instruction; correctNames is enforcement. A model that has just
     // written a fluent sentence will still drop an invented name into it.
-    return NextResponse.json({ text: correctNames(await ask(SYSTEM, text)) });
+    const translated = correctNames(await ask(SYSTEM, text));
+    /**
+     * Whether it actually came out in English, reported rather than assumed.
+     *
+     * The prompt tells the model to leave a name it cannot spell exactly as written — right,
+     * because an invented nickname is worse than an untranslated one — but on a short
+     * fragment that rule can return the whole line unchanged, and the button then looks like
+     * it did nothing. Checked here so the card does not need the detector.
+     */
+    return NextResponse.json({ text: translated, stillForeign: needsTranslation(translated) });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof LlmError ? error.message : "translation unavailable" },
